@@ -28,24 +28,19 @@ def show_sonar(data2D,distance,fig):
     Y=r*np.sin(theta)
     ax=fig.add_subplot(111)
     ax.pcolormesh(X,Y,data2D, cmap='Greys',antialiased=True)
-    plt.show()
-def temporal_check(data2D, freq, vertical_span=10, bins_freq=3, num_figure=1):
+def temporal_info(data2D, freq, vertical_span=10, bins_freq=3, num_figure=1):
     d1, d2= np.shape(data2D)    
     fft_data=abs(np.fft.fft(data2D,axis=1))
-   
-    #highlights=np.argpartition(np.sum(fft_data[:,1:],axis=1),-num_figure)[-num_figure:]
     sum_fft=np.sum(fft_data[:,1:],axis=1)
     for i in range(num_figure):
-        #highlight=highlights[i]
+
         highlight=np.argmax(sum_fft)
         sum_fft[highlight-vertical_span:highlight+vertical_span]=0
         crop_fft_data=np.fft.fftshift(fft_data[highlight-vertical_span:highlight+vertical_span,:],axes=1)
         plt.subplot(num_figure,2,2*i+1)
-        #plt.subplot(num_figure,4,2*i+1)
         plt.imshow(data2D[highlight-vertical_span:highlight+vertical_span,:],cmap='gray',aspect=d2/(2*vertical_span))
         plt.yticks([vertical_span], [highlight])
         plt.subplot(num_figure,2,2*i+2)
-        #plt.subplot(num_figure,4,2*i+1)
         plt.imshow(crop_fft_data,cmap='gray',aspect=d2/(2*vertical_span))
         plt.yticks([vertical_span], [highlight])
         plt.xticks(np.arange(d2)[::int(d2/bins_freq)], freq[::int(d2/bins_freq)])

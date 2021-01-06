@@ -175,10 +175,11 @@ if __name__=='__main__':
         sonar_img=np.zeros((number_sample,int(400/scan_step)))
         tstart_s = time.time()
         # wait for 400 device_data messages to arrive
+        fig=plt.figure(1)
         for x in scan_list(start_angle,stop_angle,scan_step):
             p.wait_message([definitions.PING360_DEVICE_DATA])
             new_message=[int(j) for j in p._data]
-            sonar_img=update_img(sonar_img, new_message,int(x/scan_step))
+            sonar_img[:,int(x/scan_step)]=new_message
             show_sonar(sonar_img,distance,fig)
             tend_s = time.time()
 
@@ -195,10 +196,11 @@ if __name__=='__main__':
 
         tstart_s = time.time()
         # wait for 40 device_data messages to arrive (40 * 10grad steps = 400 grads)
+        fig=plt.figure(1)
         for x in scan_list(start_angle,stop_angle,scan_step):
             p.wait_message([definitions.PING360_DEVICE_DATA])
             new_message=[int(j) for j in p._data]
-            sonar_img=update_img(sonar_img, new_message,int(x/scan_step))
+            sonar_img[:,int(x/scan_step)]=new_message
             show_sonar(sonar_img,distance,fig)
             tend_s = time.time()
 

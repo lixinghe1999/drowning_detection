@@ -1,0 +1,7 @@
+build
+deploy/pingviewer.rc
+*.qmlc
+.qmake.stash
+*.pro.user
+html/
+latex/

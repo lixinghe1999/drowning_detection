@@ -78,9 +78,9 @@ if __name__=='__main__':
         if args.fake:
             number_sample=500
 
-        start_angle=100
-        stop_angle=300
-        scan_step=1
+        start_angle=0
+        stop_angle=400
+        scan_step=10
         repeat=1
         distance=2
         sonar_img=np.zeros((number_sample,int(400/scan_step)))
@@ -130,7 +130,8 @@ if __name__=='__main__':
             for i in range(repeat):
 
                 #scan adjacent angle
-                #scan_angle=point_at+i%3
+                #span=1
+                #scan_angle=point_at+i%(2*span+1)-span
 
                 scan_angle = point_at
                 if args.real:

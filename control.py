@@ -117,8 +117,9 @@ if __name__=='__main__':
         vertical_span=20
         bins_freq=3
         repeat=10
-
+        show_mode=1
         point_at=300
+
         while(1):
             sonar_img=np.zeros((number_sample,repeat))
 
@@ -137,10 +138,10 @@ if __name__=='__main__':
                     new_message=[int(j) for j in p._data]
                 if args.fake:
                     new_message = np.random.random((number_sample))*0.5
-                    new_message[30]+=np.sin(2*np.pi*2*(time.time()))
-                    new_message[77]+=np.sin(2*np.pi*2*(time.time()))*0.6
-                    new_message[175]+=np.sin(2*np.pi*2*(time.time()))*0.5
-                    new_message[277]+=np.sin(2*np.pi*2*(time.time()))*0.6
+                    new_message[30]+=np.sin(2*np.pi*2*time.time())+1
+                    new_message[77]+=(np.sin(2*np.pi*2*time.time())+1)*0.6
+                    new_message[175]+=(np.sin(2*np.pi*2*time.time())+1)*0.5
+                    new_message[277]+=(np.sin(2*np.pi*2*time.time())+1)*0.6
                     plt.pause(0.1)
 
 
@@ -158,7 +159,7 @@ if __name__=='__main__':
             freq=np.fft.fftshift(freq)
             freq=np.round(freq,1)
 
-            temporal_info(sonar_img, freq, vertical_span, bins_freq, 4)
+            temporal_info(sonar_img, freq, vertical_span, bins_freq, 4, show_mode)
 
             fig.suptitle("FPS is "+ str(1/T) +' Hz', fontsize=14)
             plt.savefig("one_direction/"+local_time+".png",dpi=100,bbox_inches = 'tight')

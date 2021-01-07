@@ -8,7 +8,7 @@ import struct
 from brping import PingParser
 from dataclasses import dataclass
 from typing import IO, Any
-from sonar_display import update_img,get_data,show_sonar
+from sonar_display import get_data,show_sonar
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -108,35 +108,39 @@ class Log:
                 except Exception as _:
                     break
 
+if __name__=='__main__':
+    import argparse
 
-bin_loc='sensor_log/log_3.bin'
-# Open log and process it
-log = Log(bin_loc)
-log.process()
-sonar_img=np.zeros((666,400))
+    parser = argparse.ArgumentParser(description='Control the sonar')
+    parser.add_argument('--loc', action="store", required=False, type=str, default='sensor_log/log_3.bin',
+                        help="The location of binary file")
+    args = parser.parse_args()
+    bin_loc=args.loc
+    # Open log and process it
 
-# Get information from log
-#print(log.header)
-fig=plt.figure(1)
-ping_parser = PingParser()
-i=0
-for (timestamp, message) in log.messages:
-    i+=1
-    #print("timestamp: %s" % timestamp)
-    # Parse each byte of the message
-    for byte in message:
-        # Check if the parser has a new message
-        if ping_parser.parse_byte(byte) is PingParser.NEW_MESSAGE:
-            # Get decoded message
-            decoded_message = ping_parser.rx_msg
-            # Filter for the desired ID
-            # 1300 for Ping1D profile message and 2300 for Ping360
-            if decoded_message.message_id in [1300, 2300]:
-                data,angle=get_data(decoded_message)
-                sonar_img=update_img(sonar_img,data,angle)
-            #if i%100==0:
-                #show_sonar(sonar_img,2,fig)
-    if i >=2000:
-        show_sonar(sonar_img ,2, fig)
-    
-        break
+    log = Log(bin_loc)
+    log.process()
+    #print(log.header)
+    fig=plt.figure(1)
+    ping_parser = PingParser()
+    i=0
+    for (timestamp, message) in log.messages:
+        i+=1
+        # Parse each byte of the message
+        for byte in message:
+            # Check if the parser has a new message
+            if ping_parser.parse_byte(byte) is PingParser.NEW_MESSAGE:
+                # Get decoded message
+                decoded_message = ping_parser.rx_msg
+                # Filter for the desired ID
+                # 1300 for Ping1D profile message and 2300 for Ping360
+                if decoded_message.message_id in [1300, 2300]:
+                    if i==1:
+                        d=len(data)
+                        sonar_img = np.zeros((d, 400))
+                    data,angle=get_data(decoded_message)
+                    sonar_img[:,angle]=data
+        if i >=2000:
+            show_sonar(sonar_img, 2, fig)
+            plt.show()
+            break

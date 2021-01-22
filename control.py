@@ -43,30 +43,29 @@ def scan_list(start, stop, step):
 if __name__=='__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Control the sonar')
-    parser.add_argument('--fake', action="store", required=False, type=bool, default=False,help="We use fake data if it is True")
-    parser.add_argument('--real', action="store", required=False, type=bool, default=False,help="We use sonar data if it is True")
-    parser.add_argument('--mode', action="store", required=False, type=int, default=0,help="0-scan one sector, 1-scan one direction, 2-auto_transmit(not available now)")
-
+    parser.add_argument('--data', action="store", required=False, type=bool, default=False, help="We use fake data or sonar data")
+    #parser.add_argument('--fake', action="store", required=False, type=bool, default=False, help="We use fake data if it is True")
+    parser.add_argument('--mode', action="store", required=False, type=int, default=0, help="0-scan one sector, 1-scan one direction, 2-auto_transmit(not available now)")
     args = parser.parse_args()
 
-    if args.real:
-        device='COM3'
+    if args.data:
+        device='COM4'
         baudrate=115200
         p = Ping360()
         p.connect_serial(device, baudrate)
         print("Initialized: %s" % p.initialize())
         # setting
-        speed_of_sound=1500
-        number_sample=300
-        frequency=750
-        distance=2
-        gain_setting=3
+        speed_of_sound = 1500
+        number_sample = 500
+        frequency = 750
+        distance = 1
+        gain_setting = 0
 
-        sample_period=calsampleperiod(distance, number_sample)
-        sample_period=round(sample_period)
-        transmit_duration=adjustTransmitDuration(distance, sample_period)
+        sample_period = calsampleperiod(distance, number_sample)
+        sample_period = round(sample_period)
+        transmit_duration = adjustTransmitDuration(distance, sample_period)
 
-        print(sample_period,transmit_duration)
+        print(sample_period, transmit_duration)
         print(p.set_gain_setting(gain_setting))
         print(p.set_transmit_frequency(frequency))
         print(p.set_sample_period(sample_period))
@@ -75,26 +74,27 @@ if __name__=='__main__':
 
     if args.mode==0:
         # scan sector
-        if args.fake:
+        if not args.data:
             number_sample=500
+            distance=1
 
-        start_angle=0
-        stop_angle=400
-        scan_step=10
+        start_angle=150
+        stop_angle=250
+        scan_step=1
         repeat=1
-        distance=2
         sonar_img=np.zeros((number_sample,int(400/scan_step)))
 
 
         for i in range(repeat):
+            t_start = time.time()
             fig=plt.figure(1)
             local_time=time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
             fileObject = open("sector_scan/"+local_time+'.txt', 'w')
             for x in scan_list(start_angle,stop_angle,scan_step):
-                if args.real:
+                if args.data:
                     p.transmitAngle(x)
                     new_message=[int(j) for j in p._data]
-                if args.fake:
+                else:
                     # fake data
                     new_message = np.random.random((number_sample))*1
 
@@ -111,33 +111,35 @@ if __name__=='__main__':
 
     elif args.mode==1:
     # continously scan one direction
-        if args.fake:
+        if not args.data:
             number_sample=666
 
-        vertical_span=20
+        vertical_span=40
         bins_freq=3
-        repeat=10
-        show_mode=1
-        point_at=300
+        repeat = 1
+        frames=10
+        scan_mode=1
+        point_at=200
 
-        while(1):
-            sonar_img=np.zeros((number_sample,repeat))
+        for j in range(repeat):
+            sonar_img=np.zeros((number_sample, frames))
 
             fig=plt.figure(1)
-            t_start= time.time()
+            t_start=time.time()
             local_time=time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
             fileObject = open("one_direction/"+local_time+'.txt', 'w')
-            for i in range(repeat):
+            for i in range(frames):
+                if scan_mode == 0:
+                    scan_angle = point_at
+                else:
+                    span=1
+                    scan_angle=point_at+i%(2*span+1)-span
 
-                #scan adjacent angle
-                #span=1
-                #scan_angle=point_at+i%(2*span+1)-span
 
-                scan_angle = point_at
-                if args.real:
+                if args.data:
                     p.transmitAngle(scan_angle)
                     new_message=[int(j) for j in p._data]
-                if args.fake:
+                else:
                     new_message = np.random.random((number_sample))*0.5
                     new_message[30]+=np.sin(2*np.pi*2*time.time())+1
                     new_message[77]+=(np.sin(2*np.pi*2*time.time())+1)*0.6
@@ -150,22 +152,21 @@ if __name__=='__main__':
                 for j in range(len(new_message)):
                     fileObject.write(str(new_message[j])+" ")
                 fileObject.write("\n")
-                sonar_img=np.column_stack((new_message,sonar_img[:,:-1]))
+                sonar_img[:, i] = new_message
 
             fileObject.close()
             t_end= time.time()
-            T=(t_end-t_start)/repeat
+            T=(t_end-t_start)/frames
 
-            freq=np.fft.fftfreq(repeat, d=T)
+            freq=np.fft.fftfreq(frames, d=T)
             freq=np.fft.fftshift(freq)
             freq=np.round(freq,1)
-
-            temporal_info(sonar_img, freq, vertical_span, bins_freq, 4, show_mode)
+            temporal_info(sonar_img, freq, vertical_span, bins_freq, 2, scan_mode)
 
             fig.suptitle("FPS is "+ str(1/T) +' Hz', fontsize=14)
             plt.savefig("one_direction/"+local_time+".png",dpi=100,bbox_inches = 'tight')
             plt.show()
-            break
+
 
     elif args.mode==2:
     # turn on auto-scan with 1 grad steps

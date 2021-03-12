@@ -2,10 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/3D-ResNets-PyTorch" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/RCNN" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ping-protocol" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ping-python" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/yolov5" vcs="Git" />
   </component>
 </project>

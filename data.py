@@ -3,12 +3,9 @@ analyze the response data
 '''
 import numpy as np
 from scipy.signal import find_peaks
-from sonar_display import show_sonar, temporal_info
-import scipy.misc
-from PIL import Image
 import matplotlib.pyplot as plt
 import glob
-import os
+from skimage.transform import resize
 min_human=0.4
 max_human=2
 
@@ -42,6 +39,7 @@ def readline(line):
     data = line[1:]
     return angle, data
 def update_record(peaks_record, object_record, dict, angle, a, len_sample):
+    new_object = []
     if len(dict['left_ips'])>0:
         peaks_record[angle] = np.array([dict['left_ips'], dict['right_ips']])
         if len(peaks_record[a]) != 0 and len(peaks_record[angle]) != 0:
@@ -62,11 +60,14 @@ def update_record(peaks_record, object_record, dict, angle, a, len_sample):
                     else:
                         object_record[angle, j] = [len_sample**2 * (peaks_record[angle][1][j]**2 - peaks_record[angle][0][j]**2) * np.pi / 200, \
                                                  angle, angle, len_sample*peaks_record[angle][0][j], len_sample*peaks_record[angle][1][j], dict['prominences'][j]]
+                 new_object.append(object_record[angle, j])
         elif len(peaks_record[a]) == 0 and len(peaks_record[angle]) != 0:
             for j in range(len(peaks_record[angle][1])):
                 object_record[angle, j] = [len_sample**2 * (peaks_record[angle][1][j]**2 - peaks_record[angle][0][j]**2) * np.pi / 200, \
                                         angle, angle, len_sample * peaks_record[angle][0][j], len_sample * peaks_record[angle][1][j], dict['prominences'][j]]
-def compare(g, results):
+                new_object.append(object_record[angle, j])
+    return new_object
+def compare(g, results, threshold):
     if len(results)==0:
         return 100, []
     else:
@@ -74,6 +75,8 @@ def compare(g, results):
         keys = list(results.keys())
         for i in range(len(keys)):
             result = results[keys[i]]
+            if result[0] <= threshold:
+                continue
             c[i] = abs((g[0] - (result[4] + result[3])/2))/20 + abs((g[1] - (result[2] + result[1])/2))/100
         return min(c), results[keys[np.argmin(c)]]
 if __name__ == '__main__':
@@ -169,22 +172,33 @@ if __name__ == '__main__':
         num_sample = 500
         scan_range = 20
         sonar_image_ref = np.zeros((num_sample, 400))
+        detection = True
         lines = f.readlines()
         for line in lines:
             angle, data = readline(line)
             if len(data) == num_sample:
                 sonar_image_ref[:, angle] = data
-        for dis in ['5/','10/','15/']:
+        color = {'5/':'b', '10/': 'r', '15/':'y'}
+        for dis in ['5/', '10/', '15/']:
             if dis == '5/':
-                directories = ['static1', 'static3', 'Noaction1A', 'Noaction2A', 'Noaction2B','action1A', 'action1B', 'action2A']
+                if detection:
+                    directories = ['static1', 'static3', 'Noaction1A', 'Noaction2A', 'Noaction2B','action1A', 'action1B', 'action2A']
+                else:
+                    directories = ['Noaction1A', 'Noaction2A', 'Noaction2B', 'action1A', 'action1B', 'action2A']
                 ground_truths = {'static1': [(5.5,170),(4.2, 203)],'static3':[(5,168),(4.5,204)],'Noaction1A':[(5.2,160)],'Noaction2A':[(5.2,157)],'Noaction2B':[(5,200)],'action1A':
                                  [(5.2,160)],'action1B':[(5, 195)],'action2A':[(6, 165)]}
             elif dis == '10/':
-                directories = ['static1', 'static3', 'Noaction1B', 'Noaction2A', 'Noaction2B', 'action1A', 'action1B','action2A', 'action2B']
+                if detection:
+                    directories = ['static1', 'static3', 'Noaction1B', 'Noaction2A', 'Noaction2B', 'action1A', 'action1B', 'action2A', 'action2B']
+                else:
+                    directories = ['Noaction1B', 'Noaction2A', 'Noaction2B', 'action1A', 'action1B', 'action2A', 'action2B']
                 ground_truths = {'static1': [(10, 178), (10, 196)], 'static3': [(9.5, 175), (9.3, 195)],'Noaction1B': [(8.5, 200)], 'Noaction2A': [(7.5, 175)],
                                  'Noaction2B': [(8, 196)], 'action1A':[(7.8, 175)], 'action1B': [(7.8, 192)], 'action2A': [(7, 170)], 'action2B':[(7.2, 190)]}
             elif dis == '15/':
-                directories = ['static1', 'static3', 'Noaction1A', 'action1A', 'action2A']
+                if detection:
+                    directories = ['static1', 'static3', 'Noaction1A', 'action1A', 'action2A']
+                else:
+                    directories = ['Noaction1A', 'action1A', 'action2A']
                 ground_truths = {'static1': [(16, 185)], 'static3': [(16, 185)],'Noaction1A': [(16.7, 185)], 'action1A': [(17, 184)], 'action2A': [(17, 186)]}
             directories = directories
             for d in directories:
@@ -211,30 +225,31 @@ if __name__ == '__main__':
                         data_filter = smooth(data, len_sample, 0)
                         local_var = smooth(abs(data - data_filter), len_sample, 1)
                         peaks, dict = detect(data_filter, len_sample, local_var)
-                        update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
+                        new_object = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
                         sonar_img[:, i] = data_filter
                         if i == 0:
                             first_angle = angle
                         elif i == len(lines)-1:
                             last_angle = angle
-                    for k in list(object_record.keys()):
-                        if object_record[k][0] <= 0.5:
-                            del object_record[k]
+                    f.close()
                     o = 0
                     for g in ground_truth:
-                        c, r= compare(g, object_record)
+                        c, r= compare(g, object_record, 0.5)
                         if c <= c_threshold:
                             correct = correct + 1
-                            im = Image.fromarray(sonar_img[int(r[3]/len_sample):int(r[4]/len_sample)+1,r[1]-first_angle:r[2]-first_angle+1])
-                            im = im.convert("L")
-                            im.save('second_dataset/' + dis  + file.split('/')[-1].split('.')[0] + '_' + str(o) + '.jpg')
-                            plt.scatter(int(r[4]/len_sample)-int(r[3]/len_sample), r[2]-r[1])
+                            crop_image = sonar_img[int(r[3]/len_sample):int(r[4]/len_sample)+1,r[1]-first_angle:r[2]-first_angle+1]
+                            crop_image = resize(crop_image, (51, 11))
+                            np.save('second_dataset/' + dis  + file.split('/')[-1].split('.')[0] + '_' + str(o) + '.npy', crop_image)
+                            # plt.scatter(int(r[4]/len_sample)-int(r[3]/len_sample), r[2]-r[1], c = color[dis])
+                            # size.append(r[0])
+                            # intensity.append(r[5])
                             o = o + 1
                     # print(object_record)
                     # plt.imshow(sonar_img, cmap='gray',aspect=len(lines)/num_sample)
                     # plt.yticks([0,49,99,149,199,249,299,349,399,449,499],[0,2,4,6,8,10,12,14,16,18,20])
                     # plt.xticks(np.arange(len(lines))[::int(len(lines)/4)], np.arange(first_angle, last_angle+1)[::int(len(lines)/4)])
-                    # plt.pause(2)
+                    # plt.pause(0.5)
+                #rint(dis[:-1], d, mean(size), np.mean(intensity))
                 print(dis[:-1], d, correct/len(files)/len(ground_truth))
         plt.show()
 

@@ -10,8 +10,10 @@ from brping import definitions
 import numpy as np
 import time
 import matplotlib.pyplot as plt
-from sonar_display import show_sonar, temporal_info
-
+from sonar_display import show_sonar
+from data import *
+min_human=0.4
+max_human=2
 _firmwareMaxTransmitDuration=500    
 _firmwareMinTransmitDuration = 5
 _samplePeriodSickDuration=25e-9
@@ -31,6 +33,27 @@ def transmitDurationMax(sample_period):
 def samplePeriod(sample_period):
     return sample_period*_samplePeriodSickDuration
 
+def rescan(start, end, k, images):
+    for i in range(k):
+        image = np.zeros((500, end-start+1))
+        for j in range(start, end+1):
+            p.control_transducer(
+                0,  # reserved
+                p._gain_setting,
+                i,
+                p._transmit_duration,
+                p._sample_period,
+                p._transmit_frequency,
+                p._number_of_samples,
+                1,
+                0
+            )
+            p.wait_message([definitions.PING360_DEVICE_DATA], 0.5)
+            data = [int(j) for j in p._data]
+            len_sample = distance / len(data)
+            data_filter = smooth(data, len_sample, 0)
+            image[:, j-start] = data_filter
+        images = np.concatenate((images, image[:,:, np.newaxis]), axis=2)
 
 if __name__=='__main__':
     import argparse
@@ -47,9 +70,9 @@ if __name__=='__main__':
         p.initialize()
         # setting
         speed_of_sound = 1500
-        number_sample = 500
+        number_sample = 250
         frequency = 750
-        distance = 20
+        distance = 10
         gain_setting = 0
 
         sample_period = calsampleperiod(distance, number_sample)
@@ -65,7 +88,7 @@ if __name__=='__main__':
 
     if args.mode == 0:
         # scan sector
-        if not args.data:
+        if args.data == 0:
             number_sample=500
             distance=10
         # adjust the start and end angle
@@ -109,7 +132,7 @@ if __name__=='__main__':
             plt.show()
     elif args.mode == 1:
     # continously scan smaller sector
-        if not args.data:
+        if args.data == 0:
             number_sample=666
         repeat = 30
         start_angle = 163
@@ -147,8 +170,17 @@ if __name__=='__main__':
             fileObject.close()
             print((end_angle-start_angle)/(time.time()-t_start))
     else:
-        t_start = time.time()
-        for i in range(400):
+    # real deployment
+        i = 0
+        angle_former = 0
+        object_record = {}
+        peaks_record = [[]] * 400
+        sonar_img = np.zeros((number_sample, 400))
+        while(1):
+            if (i>99):
+                i = 0
+                object_record = {}
+                peaks_record = [[]] * 400
             p.control_transducer(
                 0,  # reserved
                 p._gain_setting,
@@ -161,6 +193,21 @@ if __name__=='__main__':
                 0
             )
             p.wait_message([definitions.PING360_DEVICE_DATA], 0.5)
-            new_message = [int(j) for j in p._data]
-        print(400 / (time.time() - t_start))
+            data=[int(j) for j in p._data]
+            len_sample = distance / len(data)
+            data_filter = smooth(data, len_sample, 0)
+            local_var = smooth(abs(data - data_filter), len_sample, 1)
+            peaks, dict = detect(data_filter, len_sample, local_var)
+            new_object = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
+            sonar_img[:, i] = data_filter
+            if len(new_object) == 0:
+                i = i + 4
+                continue
+            else:
+                for k in range(len(new_object)):
+                    # if we find object
+                    if new_object[k][0] > 0.5:
+                        images = sonar_img[:, new_object[k][1]: new_object[k][2], np.newaxis]
+                        rescan(new_object[k][1], new_object[k][2], 2, images)
+            i = i + 2
 

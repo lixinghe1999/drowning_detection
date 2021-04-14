@@ -6,6 +6,7 @@ from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 import glob
 from skimage.transform import resize
+from guppy import hpy
 min_human=0.4
 max_human=2
 
@@ -178,8 +179,9 @@ if __name__ == '__main__':
             angle, data = readline(line)
             if len(data) == num_sample:
                 sonar_image_ref[:, angle] = data
+        f.close()
         color = {'5/':'b', '10/': 'r', '15/':'y'}
-        for dis in ['5/', '10/', '15/']:
+        for dis in ['5/','10/','15/']:
             if dis == '5/':
                 if detection:
                     directories = ['static1', 'static3', 'Noaction1A', 'Noaction2A', 'Noaction2B','action1A', 'action1B', 'action2A']
@@ -227,6 +229,7 @@ if __name__ == '__main__':
                         peaks, dict = detect(data_filter, len_sample, local_var)
                         new_object = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
                         sonar_img[:, i] = data_filter
+
                         if i == 0:
                             first_angle = angle
                         elif i == len(lines)-1:
@@ -244,13 +247,15 @@ if __name__ == '__main__':
                             # size.append(r[0])
                             # intensity.append(r[5])
                             o = o + 1
-                    # print(object_record)
+                            #print(r)
                     # plt.imshow(sonar_img, cmap='gray',aspect=len(lines)/num_sample)
                     # plt.yticks([0,49,99,149,199,249,299,349,399,449,499],[0,2,4,6,8,10,12,14,16,18,20])
                     # plt.xticks(np.arange(len(lines))[::int(len(lines)/4)], np.arange(first_angle, last_angle+1)[::int(len(lines)/4)])
-                    # plt.pause(0.5)
+                    # plt.show()
                 #rint(dis[:-1], d, mean(size), np.mean(intensity))
                 print(dis[:-1], d, correct/len(files)/len(ground_truth))
+                # h = hpy()
+                # print(h.heap())
         plt.show()
 
 

@@ -2,9 +2,10 @@ import torchvision.transforms as transforms
 import torch.optim as optim
 from models import *
 from dataset import SonarDataset
+import time
 
-device = (torch.device('cuda') if torch.cuda.is_available()
-          else torch.device('cpu'))
+device = (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
+#device = torch.device('cpu')
 print(f"Training on device {device}.")
 net = LeNet().to(device)
 #net = ResNet(ResidualBlock).to(device)
@@ -15,7 +16,7 @@ assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
 checkpoint = torch.load('./checkpoint/ckpt.pth')
 net.load_state_dict(checkpoint)
 """
-EPOCH = 200
+EPOCH = 5
 LR = 0.01
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
@@ -27,7 +28,7 @@ test_transform = transforms.Compose([transforms.ToTensor(), Norm])
 train_dataset = SonarDataset(filename='second_dataset/train.txt',  transform=train_transform)
 test_dataset = SonarDataset(filename='second_dataset/test.txt',  transform=test_transform)
 trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=False)
-testloader = torch.utils.data.DataLoader(test_dataset, batch_size=128, shuffle=False)
+testloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False)
 
 print("Start Training...")
 for epoch in range(EPOCH):
@@ -47,6 +48,7 @@ for epoch in range(EPOCH):
         total = 0
         if epoch % 5 ==0:
             with torch.no_grad():
+                t_start = time.time()
                 for data in testloader:
                     images, labels = data
                     images, labels = images.to(device, dtype=torch.float), labels.to(device, dtype=torch.int64)
@@ -54,9 +56,11 @@ for epoch in range(EPOCH):
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
+                print((time.time()-t_start)/len(testloader))
             acc = 100 * correct / total
             print("Epoch {}, Training loss {:.6f}".format(epoch, loss_train / len(trainloader)))
-            print('Accuracy of the network on test images: %d %%' % (acc), )
+            print('Accuracy of the network on test images: %d %%' % (acc) )
+torch.save(net.state_dict(), "checkpoint/" + str(acc)[:5] + '.pkl')
 print("Done Training!")
 
 

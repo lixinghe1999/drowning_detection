@@ -111,7 +111,7 @@ class Log:
 if __name__=='__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Control the sonar')
-    parser.add_argument('--loc', action="store", required=False, type=str, default='second_dataset/reference.bin',
+    parser.add_argument('--loc', action="store", required=False, type=str, default='third_dataset/sonar_1/reference.bin',
                         help="The location of binary file")
     args = parser.parse_args()
     bin_loc=args.loc
@@ -120,17 +120,15 @@ if __name__=='__main__':
     fig=plt.figure(1)
     ping_parser = PingParser()
     i = 0
-    j = 0
     # we record 5 whole image
-    sonar_img = np.empty((500,400,5))
-    #fileObject = open("second_dataset/reference_test.txt", 'w')
+    sonar_img = np.empty((500,400))
+    fileObject = open("third_dataset/sonar_1/reference_test.txt", 'w')
     for (timestamp, message) in log.messages:
-        if j >= 5:
-            break
         # Parse each byte of the message
-        #if timestamp < '\x000\x000\x00:\x000\x000\x00:\x000\x004\x00.\x000\x000\x000':
-            #continue
-        #else:
+
+        if timestamp < '\x000\x000\x00:\x000\x000\x00:\x001\x009\x00.\x000\x000\x000':
+            continue
+        print(timestamp)
         for byte in message:
             # Check if the parser has a new message
             if ping_parser.parse_byte(byte) is PingParser.NEW_MESSAGE:
@@ -144,17 +142,19 @@ if __name__=='__main__':
                         d = len(data)
                     data = np.array(data)
                     data = data[np.linspace(0, d-1, 500, dtype='int')]
-                    sonar_img[:, angle, j] = data
+                    sonar_img[:, angle] = data
                     # record in txt format
-                    # fileObject.write(str(angle) + " ")
-                    # for j in range(len(data)):
-                    #     fileObject.write(str(data[j]) + " ")
-                    # fileObject.write("\n")
-                    if i % 400 == 0:
-                        j += 1
+                    fileObject.write(str(angle) + " ")
+                    for j in range(len(data)):
+                        fileObject.write(str(data[j]) + " ")
+                    fileObject.write("\n")
                     i = i + 1
-                    #plt.savefig("second_dataset/reference_test.png", dpi=200, bbox_inches='tight')
-    show_sonar(np.sqrt(np.var(sonar_img, axis = 2)), 20)
-    plt.colorbar()
+                    print(i)
+        if i > 400 :
+            show_sonar(sonar_img, 20)
+            plt.savefig("third_dataset/sonar_1/reference_test.png", dpi=200, bbox_inches='tight')
+            break
+    #show_sonar(np.sqrt(np.var(sonar_img, axis = 2)), 20)
+    #plt.colorbar()
     plt.show()
 

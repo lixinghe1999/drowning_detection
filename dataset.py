@@ -2,8 +2,8 @@ from torchvision import transforms
 import  torch
 from torch.utils.data import Dataset
 import numpy as np
-import glob
 import os
+from skimage.transform import resize
 import random
 
 class SonarDataset(Dataset):
@@ -44,42 +44,48 @@ def save_txt(list, fname):
     f.close()
 if __name__ == '__main__':
     # label --> split --> shuffle --> calculate the mean and variance of dataset
-    # mean and variance
+    # mean and variance for experiment 2
     # [41.153403795248266, 41.10783403697201, 41.126265286197004] [16.70487376238919, 16.735242169921765, 16.75909671974799]
     # [41.11250261390974, 41.13472745992071] [16.723304967395016, 16.744497445678377]
+
+    # mean and variance for experiment 2&3
+    # [44.82487197607158, 44.83491829904752, 44.864822565635535] [17.306313691662208, 17.294968273741564, 17.291359324556876]
+
     time_dimension = 3
     count = 0
     labels = []
-    images = np.zeros([51, 11, time_dimension, 1])
-    for dis in ['5/', '10/', '15/']:
-        if dis == '5/':
-            directories = ['Noaction1A', 'Noaction2A', 'Noaction2B', 'action1A', 'action1B', 'action2A']
-        elif dis == '10/':
-            directories = ['Noaction1B', 'Noaction2A', 'Noaction2B', 'action1A', 'action1B', 'action2A', 'action2B']
-        elif dis == '15/':
-            directories = ['Noaction1A', 'action1A', 'action2A']
-        directories = directories
-        save_path = 'second_dataset/stack_data/'
-        for d in directories:
-            path = 'second_dataset/' + dis + d + '/*.npy'
-            files = glob.glob(path)
-            for i in range(len(files)-time_dimension+1):
-                image = np.empty((51, 11, time_dimension))
+    test_labels = []
+    images = np.zeros([60, 15, time_dimension, 1])
+    directories = ['second_dataset/images/', 'third_dataset/sonar_1/images/', 'third_dataset/sonar_2/images/']
+    save_path = 'whole_data/'
+    for d in directories:
+        files = os.listdir(d)
+        for i in range(len(files)-time_dimension+1):
+            image = np.empty((60, 15, time_dimension))
+            flag = [f[0] for f in files[i:i+time_dimension]]
+            flag = set(flag)
+            if len(flag) == 1:
                 for j in range(time_dimension):
-                    image[:,:,j] = np.load(files[i+j])
+                    flag = files[i+j][0]
+                    path = d + files[i+j]
+                    image[:, :, j] = resize(np.load(path), (60, 15))
                 np.save(save_path + str(count) + '.npy', image)
                 images = np.concatenate((images, image[:, :, :, np.newaxis]), axis=3)
-                if d[0]=='N':
-                    l = 0
+                if files[i].split('-')[0] == 'action2':
+                    test_labels.append([save_path + str(count) + '.npy', 0])
                 else:
-                    l = 1
-                labels.append([save_path + str(count) + '.npy', l])
+                    if 'a' in flag:
+                        l = 1
+                    else:
+                        l = 0
+                    labels.append([save_path + str(count) + '.npy', l])
                 count = count + 1
     random.seed(1)
     random.shuffle(labels)
     ratio = 0.8
-    save_txt(labels[:int(len(labels)*ratio)], 'second_dataset/train.txt')
-    save_txt(labels[int(len(labels)*ratio):], 'second_dataset/test.txt')
+    save_txt(labels[:int(len(labels)*ratio)], 'train.txt')
+    save_txt(labels[int(len(labels)*ratio):], 'validate.txt')
+    save_txt(test_labels, 'test.txt')
     print(np.shape(images))
     means, stdevs = [], []
     for i in range(time_dimension):

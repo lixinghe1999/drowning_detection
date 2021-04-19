@@ -75,11 +75,11 @@ if __name__=='__main__':
     parser.add_argument('--mode', action="store", required=False, type=int, default=0, help="0-scan one sector, 1-scan one direction, 2-auto_transmit(not available now)")
     parser.add_argument('--background', action="store", required=False, type=int, default=1,help="Use background substration or close substration")
     args = parser.parse_args()
-    start_angle = 0
-    stop_angle = 10
-    scan_step = 3
-    repeat = 30
-    reference = "mode_0/2021-04-13-21-41-48.txt"
+    start_angle = 100
+    stop_angle = 300
+    scan_step = 1
+    repeat = 50
+    reference = "mode_0/2021-04-15-10-10-07.txt"
 
     if args.data == 1:
         device='COM4'
@@ -202,7 +202,7 @@ if __name__=='__main__':
         angle_former = (start_angle-1)%400
         former_object = []
         object_record = {}
-        peaks_record = [[]] * 400
+        peaks_record = [[[],[]]] * 400
         sonar_img = np.zeros((number_sample, 400))
         local_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
         fileObject = open("mode_2/" + local_time + '.txt', 'w')
@@ -218,7 +218,7 @@ if __name__=='__main__':
                 print(time.time()-t_start)
                 #show_sonar(sonar_img, distance)
                 #plt.show()
-                break
+
             p.control_transducer(
                 0,  # reserved
                 p._gain_setting,
@@ -262,7 +262,7 @@ if __name__=='__main__':
                         local_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
                         np.save("mode_2/" + local_time + '.npy', images)
                         images = test_transform(resize(images, (51, 11, 3)))
-
+                        
                         # return to former setting
                         sample_period = calsampleperiod(distance, number_sample)
                         sample_period = round(sample_period)

@@ -1,7 +1,11 @@
 import cv2
 import numpy as np
+import argparse
+import os
 import matplotlib.pyplot as plt
 from sonar_display import show_sonar
+import torch
+
 ## use this script to annotate human location from raw image
 def readline(line):
     line = line.split()
@@ -21,7 +25,7 @@ def on_EVENT_LBUTTONDOWN(event, x, y, flags, param):
         imageLoc.append([x, y])
     return None
 def sonar2pool(a, angle, distance):
-    if a == 1:
+    if a == 0:
         offset = (0, 5.02)
         rotate = 163
     else:
@@ -31,66 +35,66 @@ def sonar2pool(a, angle, distance):
     X = offset[0] + np.cos(angle_pool)*distance
     Y = offset[1] + np.sin(angle_pool)*distance
     return [X,Y]
-
+def txt2loc(f, w, h):
+    f_ob = open(f)
+    lines = f_ob.readlines()
+    result = [[], [], []]
+    for line in lines:
+        line = line.split()
+        if int(line[0]) != 0 or (float(line[1]) + float(line[2]))<0.7:
+            continue
+        else:
+            result[0].append(float(line[1]) * w)
+            result[1].append(float(line[2]) * h)
+            result[2].append(1)
+    return result
 if __name__=='__main__':
-    # files = ["third_dataset/sonar_1/reference.txt", "third_dataset/sonar_2/reference.txt"]
-    # for file in files:
-    #     print(file)
-    #     f = open(file, 'r')
-    #     lines = f.readlines()
-    #     sonar_img = np.zeros((500, 400))
-    #     for i in range(len(lines)):
-    #         angle, data = readline(lines[i])
-    #         if len(data) == 0:
-    #             continue
-    #         sonar_img[:, angle] = data
-    #     show_sonar(sonar_img, 20)
-    #     plt.show()
-
-    cap = cv2.VideoCapture("third_dataset/walk.mp4")
-    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-    ret, frame = cap.read()
-    #cameraMatrix = np.array([[3037.3, 0, 2031.5], [0, 3030.1, 1485.3], [0, 0, 1]])
-    cameraMatrix = np.eye(3)
-    #distCoeffs = np.array([0.1342, -0.3982, 0, 0])
-    distCoeffs = np.array([0, 0, 0, 0])
-    imageLoc = []
-    cv2.namedWindow('image', cv2.WINDOW_NORMAL)
-    cv2.setMouseCallback("image", on_EVENT_LBUTTONDOWN)
-    cv2.imshow("image", frame)
-    cv2.waitKey(0)
-    imageLoc = np.array(imageLoc, dtype='float32')
-    # imageLoc = np.array([[707, 375], [342, 870], [1086, 988], [1420, 263]], dtype='float32')
-    worldLoc = np.array([[7, 0, 0], [0, 2.5, 0], [0, 5, 0], [20, 5, 0]], dtype='float32')
-    (_, rvec, tvec) = cv2.solvePnP(worldLoc, imageLoc, cameraMatrix, distCoeffs, flags=cv2.SOLVEPNP_ITERATIVE)
-    rotationMatrix, _ = cv2.Rodrigues(rvec)
-    rotationMatrix = np.asmatrix(rotationMatrix)
-    for i in range(3 * int(cap.get(5)), int(cap.get(7)), 3 * int(cap.get(5))):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, i)
-        ret, frame = cap.read()
-        imageLoc = []
-        cv2.namedWindow('image', cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback("image", on_EVENT_LBUTTONDOWN)
-        cv2.imshow("image", frame)
-        cv2.waitKey(0)
-        print(imageLoc)
-        imageOrigin = np.array([[imageLoc[0][0], imageLoc[1][0]],[imageLoc[0][1], imageLoc[0][1]],[1, 1]], dtype='float32')
-        print(imageOrigin.shape)
-        leftMat = rotationMatrix.I * np.asmatrix(cameraMatrix).I * imageOrigin
-        rightMat = rotationMatrix.I * tvec
-        s = rightMat[2, 0]/ leftMat[2, 0]
-        print(rotationMatrix.I * (s * np.asmatrix(cameraMatrix).I *imageOrigin - tvec ))
-    cap.release()
-    cv2.destroyAllWindows()
-
-    # for i in range(0, int(cap.get(7)), int(cap.get(5))):
-    #     cap.set(cv2.CAP_PROP_POS_FRAMES, i)
-    #     ret, frame = cap.read()
-    #     cv2.imshow('frame', frame)
-    #     cv2.waitKey(0)
-    #
-    # cap.release()
-    # cv2.destroyAllWindows()
+    parser = argparse.ArgumentParser(description='Control the sonar')
+    parser.add_argument('--mode', action="store", required=False, type=int, default=1,
+                        help="0-yolo detection prepare, 1-localization")
+    args = parser.parse_args()
+    if args.mode == 0:
+        for f in ['swim', 'walk']:
+            cap = cv2.VideoCapture("third_dataset/" + f + '.mp4')
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            # save as jpg
+            for i in range(0, int(cap.get(7)), 3 * int(cap.get(5))):
+                cap.set(cv2.CAP_PROP_POS_FRAMES, i)
+                ret, frame = cap.read()
+                cv2.imwrite('third_dataset/images/'+str(i)+ '-' + f + '.jpg' , frame)
+    # python code python detect.py --source ../third_dataset/images --weights yolov5m.pt --conf 0.25 --save-txt
+    else:
+        cameraMatrix = np.array([[2803.5, 0, 1837.4], [0, 2807.8, 1394.1], [0, 0, 1]])
+        distCoeffs = np.array([-0.0219, 0.0142, 0, 0])
+        #cameraMatrix = np.eye(3)
+        #distCoeffs = np.array([0, 0, 0, 0])
+        for f in ['swim', 'walk']:
+            path = "yolov5/runs/detect/exp4/labels/"
+            labels = os.listdir(path)
+            cap = cv2.VideoCapture("third_dataset/" + f + '.mp4')
+            ret, frame = cap.read()
+            h, w, c = np.shape(frame)
+            imageLoc = []
+            cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+            cv2.setMouseCallback("image", on_EVENT_LBUTTONDOWN)
+            cv2.imshow("image", frame)
+            cv2.waitKey(0)
+            #print(imageLoc)
+            imageLoc = np.array(imageLoc, dtype='float32')
+            # imageLoc = np.array([[707, 375], [342, 870], [1086, 988], [1420, 263]], dtype='float32')
+            worldLoc = np.array([[10, 0, 0], [20, 0, 0], [20, 5, 0], [10, 5, 0], [0, 5, 0], [0, 2.5, 0]], dtype='float32')
+            (_, rvec, tvec) = cv2.solvePnP(worldLoc, imageLoc, cameraMatrix, distCoeffs, flags=cv2.SOLVEPNP_ITERATIVE)
+            rotationMatrix, _ = cv2.Rodrigues(rvec)
+            rotationMatrix = np.asmatrix(rotationMatrix)
+            for f in labels:
+                imageOrigin = np.array(txt2loc(path + f, w, h), dtype='float32')
+                leftMat = rotationMatrix.I * np.asmatrix(cameraMatrix).I * imageOrigin
+                rightMat = rotationMatrix.I * tvec
+                s = rightMat[2, 0]/ leftMat[2, 0]
+                print(rotationMatrix.I * (s * np.asmatrix(cameraMatrix).I *imageOrigin - tvec ))
+                break
+            cap.release()
+            cv2.destroyAllWindows()
 
     # img = cv2.undistort(rawchessboard, cameraMatrix, distCoeffs, None, None)
     # imageLoc = []

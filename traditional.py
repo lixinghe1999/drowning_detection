@@ -1,27 +1,55 @@
 from dataset import  SonarDataset
-import torchvision.transforms as transforms
+from sklearn import svm
 import matplotlib.pyplot as plt
 import numpy as np
-Norm = ((41.153403795248266, 41.10783403697201, 41.126265286197004),(16.70487376238919, 16.735242169921765, 16.75909671974799))
-train_dataset = SonarDataset(filename='second_dataset/train.txt')
-test_dataset = SonarDataset(filename='second_dataset/test.txt')
-diff = [[], []]
-j = 0
-correct = 0
-for img, label in train_dataset:
+import cv2
+def extract_features(img):
+    F = []
+    threshold = 0.2
+    f1 = abs(img[:, :, 1] - img[:, :, 0])
+    f_thershold = f1 > threshold
+    f1[f_thershold] = 0
+    F.append(np.mean(f1, axis=(0, 1)))
+    F.append(np.sum(f_thershold!=0, axis=(0,1)))
+
+    f2 = abs(img[:, :, 2] - img[:, :, 1])
+    f_thershold = f2 > threshold
+    f2[f_thershold] = 0
+    F.append(np.mean(f2, axis=(0, 1)))
+    F.append(np.sum(f_thershold != 0, axis=(0, 1)))
+
+    # f3 = abs(img[:, :, 2] - img[:, :, 0])
+    # f_thershold = f3 > threshold
+    # f3[f_thershold] = 0
+    # F.append(np.mean(f3, axis=(0, 1)))
+    # F.append(np.sum(f_thershold != 0, axis=(0, 1)))
+    for j in range(3):
+        F.append(np.max(img[:, :, j], axis=(0, 1)))
+        F.append(np.mean(img[:, :, j], axis=(0, 1)))
+
+    return F
+
+if __name__ == '__main__':
+    Norm = ((52.599049512970446, 52.580069378570286, 52.56049022923118), (15.84267112429285, 15.855886602198726, 15.866821187867181))
+    train_dataset = SonarDataset(filename='train.txt')
+    valid_dataset = SonarDataset(filename='validate.txt')
+    X = []
+    y = []
     a = 0
-    #for i in range(np.shape(img)[2]):
-        #img[:,:,i] /= np.max(img[:,:,i].ravel())
-    a += np.mean(abs(img[:, :, 1] - img[:, :, 0]).ravel())
-    a += np.mean(abs(img[:, :, 2] - img[:, :, 1]).ravel())
-    a = a/2
-    diff[label].append(a)
-    # if a >= 40.8 and label == 1:
-    #     correct +=1
-    # elif a<40.8 and label ==0:
-    #     correct +=1
-    j = j+1
-    if (j>500):
-        break
-print(np.mean(diff[0]), np.mean(diff[1]))
-print(correct/j)
+    for i in range(len(train_dataset)):
+        img, label = train_dataset[i]
+        img = (img-np.array(Norm[0]))/np.array(Norm[1])
+        F = extract_features(img)
+        X.append(F)
+        y.append(label.item())
+    clf = svm.SVC()
+    clf.fit(X, y)
+    correct = 0
+    for i in range(len(valid_dataset)):
+        img, label = valid_dataset[i]
+        img = (img-np.array(Norm[0]))/np.array(Norm[1])
+        F = extract_features(img)
+        if clf.predict([F]) == label.item():
+            correct = correct + 1
+    print(correct / len(valid_dataset))
+

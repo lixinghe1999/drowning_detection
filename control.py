@@ -18,7 +18,7 @@ from skimage.transform import resize
 import torchvision.transforms as transforms
 
 min_human=0.4
-max_human=2
+max_human=1.5
 _firmwareMaxTransmitDuration=500
 _firmwareMinTransmitDuration = 5
 _samplePeriodSickDuration=25e-9
@@ -191,16 +191,16 @@ if __name__=='__main__':
                     sonar_image_ref[:, angle] = data
             f.close()
         # DNN
-        #device = (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
-        device = torch.device('cpu')
-        net = LeNet().to(device)
-        net.load_state_dict(torch.load("checkpoint/94.73.pkl"))
-        Norm = transforms.Normalize((41.153403795248266, 41.10783403697201, 41.126265286197004),(16.70487376238919, 16.735242169921765, 16.75909671974799))
-        test_transform = transforms.Compose([transforms.ToTensor(), Norm])
+        # device = (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
+        # device = torch.device('cpu')
+        # net = LeNet().to(device)
+        # net.load_state_dict(torch.load("checkpoint/94.73.pkl"))
+        # Norm = transforms.Normalize((41.153403795248266, 41.10783403697201, 41.126265286197004),(16.70487376238919, 16.735242169921765, 16.75909671974799))
+        # test_transform = transforms.Compose([transforms.ToTensor(), Norm])
         # sonar control
         angle = start_angle
         angle_former = (start_angle-1)%400
-        former_object = []
+        object_former = []
         object_record = {}
         peaks_record = [[[],[]]] * 400
         sonar_img = np.zeros((number_sample, 400))
@@ -249,20 +249,20 @@ if __name__=='__main__':
             data_filter = smooth(data, len_sample, 0)
             local_var = smooth(abs(data - data_filter), len_sample, 1)
             peaks, dict = detect(data_filter, len_sample, local_var)
-            new_object = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
+            new_object, overlap = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
             sonar_img[:, angle] = data
-            angle_former = angle
-            former_object = new_object
-            if len(new_object) == 0:
-                for k in range(len(former_object)):
-                    if former_object[k][0] > 0.4:
-                        print(former_object[k])
-                        images = sonar_img[:, former_object[k][1]: former_object[k][2]+1, np.newaxis]
-                        images = rescan(former_object[k],distance,number_sample, 2, images,p)
+            angle_add = 3
+            for o in object_former:
+                if o[1] not in overlap:
+                    if object_former[o][0] * object_former[o][5] > 16:
+                        r = object_former[o]
+                        print(r)
+                        images = sonar_img[:, r[1]: r[2]+1, np.newaxis]
+                        images = rescan(r, distance, number_sample, 2, images, p)
                         local_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
                         np.save("mode_2/" + local_time + '.npy', images)
-                        images = test_transform(resize(images, (51, 11, 3)))
-                        
+
+                        #images = test_transform(resize(images, (51, 11, 3)))
                         # return to former setting
                         sample_period = calsampleperiod(distance, number_sample)
                         sample_period = round(sample_period)
@@ -271,15 +271,17 @@ if __name__=='__main__':
                         p.set_number_of_samples(number_sample)
                         p.set_transmit_duration(transmit_duration)
                         # do classification
-                        with torch.no_grad():
-                            images = torch.unsqueeze(images, 0)
-                            output = net(images.to(device, dtype=torch.float))
-                            print(output.data)
-                sonar_img[:, (angle + 1) % 400] = data
-                sonar_img[:, (angle + 2) % 400] = data
-                angle = angle + 3
-            else:
-                angle = angle + 1
+                        # with torch.no_grad():
+                        #     images = torch.unsqueeze(images, 0)
+                        #     output = net(images.to(device, dtype=torch.float))
+                        #     print(output.data)
+                else:
+                    angle_add = 1
+            angle_former = angle
+            object_former = new_object
+            for i in range(1, angle_add):
+                sonar_img[:, (angle + i) % 400] = data
+            angle = angle + angle_add
     else:
         t_start = time.time()
         for x in range(0, 10, 1):

@@ -18,13 +18,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     EPOCH = 200
-    LR = 0.0025
+    LR = 0.01
     device = (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
     # device = torch.device('cpu')
     net = LeNet((45, 15)).to(device)
     # net.load_state_dict(torch.load("checkpoint/81.57.pkl"))
-    #Norm = transforms.Normalize((52.599049512970446, 52.580069378570286, 52.56049022923118), (15.84267112429285, 15.855886602198726, 15.866821187867181))
-    Norm = transforms.Normalize((52.489604005663956, 52.453554835700686, 52.448508964688735, 52.44205857533522), (15.804601841790076, 15.799356294654816, 15.811369122906537, 15.818706894728548))
+    Norm = transforms.Normalize((52.819049512970446, 52.800069378570286, 52.79049022923118), (15.84267112429285, 15.855886602198726, 15.866821187867181))
+    #Norm = transforms.Normalize((52.489604005663956, 52.453554835700686, 52.448508964688735, 52.44205857533522), (15.804601841790076, 15.799356294654816, 15.811369122906537, 15.818706894728548))
     transform = transforms.Compose([transforms.ToTensor(), Norm])
     train_transform = transform
     valid_transform = transform
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     valid_dataset = SonarDataset(filename='validate.txt', transform=valid_transform)
     test_dataset = SonarDataset(filename='test.txt', transform=test_transform)
 
-    trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=False)
+    trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
     validloader = torch.utils.data.DataLoader(valid_dataset, batch_size=256, shuffle=False)
     testloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False)
 
@@ -84,7 +84,7 @@ if __name__ == '__main__':
         plt.plot(acc_plt)
         plt.show()
     else:
-        net.load_state_dict(torch.load("checkpoint/93.60.pkl"))
+        net.load_state_dict(torch.load("checkpoint/90.64.pkl"))
         result = []
         with torch.no_grad():
             t_start = time.time()
@@ -94,13 +94,6 @@ if __name__ == '__main__':
                 outputs = net(images)
                 _, predicted = torch.max(outputs.data, 1)
                 result.append(predicted)
-                # print(predicted.data)
-                # img = images.cpu().numpy()[0]
-                # img = np.transpose(img, (1, 2, 0))
-                # for i in range(3):
-                #     plt.subplot(1,3,i+1)
-                #     plt.imshow(img[:, :, i])
-                # plt.show()
             print((time.time() - t_start) / len(testloader))
         #result = np.convolve(result, np.ones(5) / 5, mode="same")
         plt.plot(result)

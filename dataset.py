@@ -72,7 +72,7 @@ if __name__ == '__main__':
         plt.show()
     else:
         Max_shape = (45, 15)
-        time_dimension = 4
+        time_dimension = 3
         count = 0
         labels = []
         test_labels = []

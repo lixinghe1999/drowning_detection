@@ -77,14 +77,14 @@ if __name__=='__main__':
     parser.add_argument('--background', action="store", required=False, type=int, default=1,help="Use background substration or close substration")
     args = parser.parse_args()
     threshold = [30, 100, 1.5, 100] #object filter
-    start_angle = 150
-    stop_angle = 180
+    start_angle = 160
+    stop_angle = 190
     scan_step = 3 #only for mode_0
     repeat = 50 # only for mode_1
     fast_scan = 3 # mode_2
     slow_scan = 1 # mode_2
     num_rescan = 3 # mode_2
-    reference = "mode_0/2021-05-13-11-25-22.txt"
+    reference = "mode_0/2021-05-21-11-15-10.txt"
 
     if args.data == 1:
         device='COM4'
@@ -261,15 +261,15 @@ if __name__=='__main__':
             for o in object_former:
                 if o[1] not in overlap:
                     if filter(object_former[o], threshold):
-                        if object_record[o][4] > rmax:
-                            rmax = object_record[o][4]
-                            r = object_record[o]
+                        if object_former[o][4] > rmax:
+                            rmax = object_former[o][4]
+                            r = object_former[o]
                 else:
                     angle_add = slow_scan
             if rmax!=0:
                 print(r)
                 images = sonar_img[:, r[1]: r[2] + 1, np.newaxis]
-                images = rescan(r, distance, number_sample, num_rescan, images, p)
+                images = rescan(r, distance, number_sample, num_rescan, images)
                 local_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
                 np.save("mode_2/" + local_time + '.npy', images)
                 # images = test_transform(resize(images, (51, 11, 3)))

@@ -204,9 +204,9 @@ if __name__ == '__main__':
         print(correct/whole)
     elif args.exp == 2:
         # remake storage folder
-        shutil.rmtree('second_dataset/images/')
-        os.mkdir('second_dataset/images/')
-        reference = "second_dataset/reference.txt"
+        shutil.rmtree('2/images/')
+        os.mkdir('2/images/')
+        reference = "2/reference.txt"
         f = open(reference, "r")
         num_sample = 500
         scan_range = 20
@@ -243,7 +243,7 @@ if __name__ == '__main__':
                 ground_truths = {'static1': [(16, 185)], 'static3': [(16, 185)],'Noaction1A': [(16.7, 185)], 'action1A': [(17, 184)], 'action2A': [(17, 186)]}
             directories = directories
             for d in directories:
-                path = 'second_dataset/' + dis + d +'/*.txt'
+                path = '2/' + dis + d +'/*.txt'
                 files = glob.glob(path)
                 ground_truth = ground_truths[d]
                 correct = 0
@@ -301,9 +301,9 @@ if __name__ == '__main__':
         n = 0
         a = 0
         for sonar in ["sonar_1/", "sonar_2/"]:
-            shutil.rmtree('third_dataset/' + sonar + 'images/')
-            os.mkdir('third_dataset/' + sonar + 'images/')
-            reference = "third_dataset/" + sonar + "reference.txt"
+            shutil.rmtree('3/' + sonar + 'images/')
+            os.mkdir('3/' + sonar + 'images/')
+            reference = "3/" + sonar + "reference.txt"
             f = open(reference, "r")
             num_sample = 500
             scan_range = 20
@@ -319,7 +319,7 @@ if __name__ == '__main__':
             ground_truths = {"sonar_1/":{'Noaction1':[(6,167),(3.5, 154)], 'Noaction2':[(6,164),(3.8,155)], 'action1':[(6,165),(4,158)], 'action2':[(6.6,165),(4,155)],},
                              "sonar_2/":{'Noaction1':[(3.8,232),(5.2,262)], 'Noaction2':[(3,230),(5,260)], 'action1':[(3,230),(5,260)], 'action2':[(3,220),(4.5,260)]}}
             for d in directories:
-                path = 'third_dataset/' + sonar + d
+                path = '3/' + sonar + d
                 files = os.listdir(path)
                 ground_truth = ground_truths[sonar][d]
                 correct = 0
@@ -390,11 +390,11 @@ if __name__ == '__main__':
         scan_range = 20
         sonar_image_refs = {}
         for sonar in ["sonar_1/", "sonar_2/"]:
-            for f in os.listdir('fourth_dataset/' + sonar):
+            for f in os.listdir('4/' + sonar):
                 if f.split('.')[-1] == 'txt':
                     f_name = f.split('.')[0]
                     sonar_image_refs[f_name] = np.zeros((num_sample, 400))
-                    reference = "fourth_dataset/" + sonar + f
+                    reference = "4/" + sonar + f
                     f = open(reference, "r")
                     lines = f.readlines()
                     for line in lines:
@@ -406,7 +406,7 @@ if __name__ == '__main__':
             # ground_truths = {"sonar_1/": {"Normal": [(6, 167), (3.5, 154)], 'Action': [(6, 164), (3.8, 155)],'Submerge': [(6, 165), (4, 158)], },
             #                  "sonar_2/": {"Normal": [(3.8, 232), (5.2, 262)], 'Action': [(3, 230), (5, 260)],'Submerge': [(3, 230), (5, 260)], }}
             for d in directories:
-                path = 'fourth_dataset/' + sonar + d
+                path = '4/' + sonar + d
                 files = os.listdir(path)
                 correct = 0
                 for file in files:
@@ -436,10 +436,10 @@ if __name__ == '__main__':
                             rmax = 0
                             for o in object_former:
                                 if o[1] not in overlap:
-                                    if filter(object_record[o], threshold):
-                                        if object_record[o][4] > rmax:
-                                            rmax = object_record[o][4]
-                                            r = object_record[o]
+                                    if filter(object_former[o], threshold):
+                                        if object_former[o][4] > rmax:
+                                            rmax = object_former[o][4]
+                                            r = object_former[o]
                             if rmax!=0:
                                 print(r)
                             object_former = new_object
@@ -447,6 +447,57 @@ if __name__ == '__main__':
                         f.close()
                     else:
                         continue
+    elif args.exp == 5:
+        n = 0
+        a = 0
+        num_sample = 500
+        scan_range = 20
+        sonar_image_refs = {}
+        for sonar in ["sonar_1/", "sonar_2/"]:
+            directories = ["Normal", 'Action', 'Submerge', 'Full']
+            # ground_truths = {"sonar_1/": {"Normal": [(6, 167), (3.5, 154)], 'Action': [(6, 164), (3.8, 155)],'Submerge': [(6, 165), (4, 158)], },
+            #                  "sonar_2/": {"Normal": [(3.8, 232), (5.2, 262)], 'Action': [(3, 230), (5, 260)],'Submerge': [(3, 230), (5, 260)], }}
+            for d in directories:
+                path = '5/' + sonar + d
+                files = os.listdir(path)
+                correct = 0
+                for file in files:
+                    print(sonar, d, file)
+                    if file.split('.')[-1] == 'txt':
+                        f = open(path + '/' + file, 'r')
+                        lines = f.readlines()
+                        sonar_img = np.zeros((num_sample, 400))
+                        angle_former = 0
+                        object_former = {}
+                        object_record = {}
+                        peaks_record = [[[], []]] * 400
+                        for i in range(len(lines)):
+                            angle, data = readline(lines[i])
+                            if len(data) == 0:
+                                continue
+                            #data = abs(data - sonar_image_ref[:, angle])
+                            len_sample = scan_range / len(data)
+                            data_filter = smooth(data, len_sample, 0)
+                            local_var = smooth(abs(data - data_filter), len_sample, 1)
+                            peaks, dict = detect(data_filter, len_sample, local_var)
+                            new_object, overlap = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
+                            sonar_img[:, angle] = data
+                            rmax = 0
+                            for o in object_former:
+                                if o[1] not in overlap:
+                                    if filter(object_former[o], threshold):
+                                        if object_former[o][4] > rmax:
+                                            rmax = object_former[o][4]
+                                            r = object_former[o]
+                            if rmax != 0:
+                                print(r)
+                            object_former = new_object
+                            angle_former = angle
+                        f.close()
+                    else:
+                        #image = np.load(path + '/' + file)
+                        #print(image.shape)
+                        pass
     else:# all random data
         n, m1, m2, w = 0, 0, 0, 0
         color = ['b', 'g']

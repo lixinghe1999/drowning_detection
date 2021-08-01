@@ -6,6 +6,7 @@ Created on Mon Dec 21 11:21:55 2020
 """
 import numpy as np
 import matplotlib.pyplot as plt
+from data import readline
 def get_data(decoded_message):
     data=[int(item) for item in decoded_message.data]
     angle=decoded_message.angle
@@ -18,6 +19,10 @@ def show_sonar(data2D,distance):
     X=r*np.cos(theta)
     Y=r*np.sin(theta)
     plt.pcolormesh(X,Y,data2D, shading= 'auto', cmap='Greys',antialiased=True)
+    K = 40
+    for i in range(K):
+        angle = np.pi/ K * 2 * i
+        plt.plot([0, distance * np.cos(angle)], [0, distance * np.sin(angle)], linewidth = 0.1, color = 'red', linestyle = "--")
 
 def temporal_info(data2D, freq, vertical_s=10, bins_freq=3, num_figure=1, mode=0):
     # argument
@@ -59,32 +64,13 @@ def temporal_info(data2D, freq, vertical_s=10, bins_freq=3, num_figure=1, mode=0
 
 
 if __name__=='__main__':
-    num_sample=666
-    num_t=10
-    f=2
-    T=1/10
-    #1/T> 2*2*pi*f
-    T_max=1/(2*f)
-    print(T_max, T)
-    t=num_t * T
-    fig=plt.figure(1)
-    freq=np.fft.fftfreq(num_t, d=T)
-    freq=np.fft.fftshift(freq)
-    data2D=np.random.random((num_sample,num_t))*0.5
-    data2D[128,:]+=np.sin(2*np.pi*f*np.linspace(0,t,num_t))
-    
-    vertical_span=10
-    bins_freq=3
-    temporal_info(data2D, freq, vertical_span, bins_freq, 2,0)
+    path = '6/sonar_2/mode_0/2021-07-29-09-51-59.txt'
+    f = open(path, 'r')
+    lines = f.readlines()
+    sonar_img = np.zeros((500, 400))
+    for i in range(len(lines)):
+        angle, data = readline(lines[i])
+        if len(data) != 0:
+            sonar_img[:, i] = data
+    show_sonar(sonar_img, 20)
     plt.show()
-
-'''
-num_frames=20
-num_samples=500
-test=np.random.random((num_samples,num_frames))*255
-
-for i in range(20):
-    new_message=np.ones((num_samples,1))*255
-    test=update_img(test, new_message)
-    plt.pause(0.1)
-'''

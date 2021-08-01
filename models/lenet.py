@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class LeNet(nn.Module):
-    def __init__(self, shape):
+    def __init__(self, shape, fc):
         super(LeNet, self).__init__()
         kernel = (2, 2)
         num_fc1, num_fc2 = shape
@@ -14,7 +14,7 @@ class LeNet(nn.Module):
         self.conv2 = nn.Conv2d(8, 16, kernel)
         self.fc1   = nn.Linear(16 * num_fc1* num_fc2, 120)
         self.fc2   = nn.Linear(120, 20)
-        self.fc3   = nn.Linear(20, 2)
+        self.fc3   = nn.Linear(20, fc)
 
     def forward(self, x):
         out = F.relu(self.conv1(x))

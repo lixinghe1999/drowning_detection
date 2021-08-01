@@ -67,8 +67,8 @@ def rescan(former_object, distance, number_sample, k, images):
             data = [int(n) for n in p._data]
             image[:temp_number_sample, i-former_object[1]] = data
         images = np.concatenate((images, image[:,:, np.newaxis]), axis=2)
-    return images[int(number_sample*former_object[3]/distance):temp_number_sample, :, :]
-
+    #return images[int(number_sample*former_object[3]/distance):int(number_sample*former_object[4]/distance), :, :]
+    return images
 if __name__=='__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Control the sonar')
@@ -76,18 +76,18 @@ if __name__=='__main__':
     parser.add_argument('--mode', action="store", required=False, type=int, default=0, help="0-scan one sector, 1-scan one direction, 2-auto_transmit(not available now)")
     parser.add_argument('--background', action="store", required=False, type=int, default=1,help="Use background substration or close substration")
     args = parser.parse_args()
-    threshold = [30, 100, 1.5, 100] #object filter
-    start_angle = 160
-    stop_angle = 190
+    threshold = [10, 150, 2, 100] #object filter
+    start_angle = 205
+    stop_angle = 235
     scan_step = 3 #only for mode_0
     repeat = 50 # only for mode_1
     fast_scan = 3 # mode_2
     slow_scan = 1 # mode_2
     num_rescan = 3 # mode_2
-    reference = "mode_0/2021-05-21-11-15-10.txt"
+    reference = "mode_0/2021-07-29-09-48-59.txt"
 
     if args.data == 1:
-        device='COM4'
+        device='COM8'
         baudrate=115200
         p = Ping360()
         p.connect_serial(device, baudrate)
@@ -116,7 +116,7 @@ if __name__=='__main__':
             distance=10
         # adjust the start and end angle
         sonar_img=np.zeros((number_sample,int(400/scan_step)+1))
-        fig=plt.figure(1)
+        fig=plt.figure(figsize=(8,6), dpi = 200)
         local_time=time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
         fileObject = open("mode_0/"+local_time+'.txt', 'w')
         for x in range(start_angle,stop_angle,scan_step):
@@ -146,6 +146,7 @@ if __name__=='__main__':
         fileObject.close()
         show_sonar(sonar_img, distance)
         plt.savefig("mode_0/"+local_time+".png",dpi=200,bbox_inches = 'tight')
+        plt.axis('equal')
         plt.show()
     elif args.mode == 1:
     # continously scan smaller sector
@@ -207,7 +208,7 @@ if __name__=='__main__':
         angle_former = (start_angle-1)%400
         object_former = []
         object_record = {}
-        peaks_record = [[[],[]]] * 400
+        peaks_record = [[[], []]] * 400
         sonar_img = np.zeros((number_sample, 400))
         local_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
         fileObject = open("mode_2/" + local_time + '.txt', 'w')
@@ -223,7 +224,6 @@ if __name__=='__main__':
                 print(time.time()-t_start)
                 #show_sonar(sonar_img, distance)
                 #plt.show()
-
             p.control_transducer(
                 0,  # reserved
                 p._gain_setting,
@@ -237,59 +237,61 @@ if __name__=='__main__':
             )
             p.wait_message([definitions.PING360_DEVICE_DATA], 0.5)
             data = [int(j) for j in p._data]
-            # record data
-            fileObject.write(str(angle) + " ")
-            for j in range(len(data)):
-                fileObject.write(str(data[j]) + " ")
-            fileObject.write("\n")
             if len(data) == 0:
+                # wrong data
                 angle = angle + 1
-                continue
-            if args.background == 1:
-                data = abs(data - sonar_image_ref[:, angle])
             else:
-                data[:round(number_sample/distance)] = 0
-
-            len_sample = distance / number_sample
-            data_filter = smooth(data, len_sample, 0)
-            local_var = smooth(abs(data - data_filter), len_sample, 1)
-            peaks, dict = detect(data_filter, len_sample, local_var)
-            new_object, overlap = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
-            sonar_img[:, angle] = data
-            rmax = 0
-            angle_add = fast_scan
-            for o in object_former:
-                if o[1] not in overlap:
-                    if filter(object_former[o], threshold):
-                        if object_former[o][4] > rmax:
-                            rmax = object_former[o][4]
-                            r = object_former[o]
+                # record data
+                fileObject.write(str(angle) + " ")
+                for j in range(len(data)):
+                    fileObject.write(str(data[j]) + " ")
+                fileObject.write("\n")
+                if args.background == 1:
+                    data = abs(data - sonar_image_ref[:, angle])
                 else:
-                    angle_add = slow_scan
-            if rmax!=0:
-                print(r)
-                images = sonar_img[:, r[1]: r[2] + 1, np.newaxis]
-                images = rescan(r, distance, number_sample, num_rescan, images)
-                local_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-                np.save("mode_2/" + local_time + '.npy', images)
-                # images = test_transform(resize(images, (51, 11, 3)))
-                # return to former setting
-                sample_period = calsampleperiod(distance, number_sample)
-                sample_period = round(sample_period)
-                transmit_duration = adjustTransmitDuration(distance, sample_period)
-                p.set_sample_period(sample_period)
-                p.set_number_of_samples(number_sample)
-                p.set_transmit_duration(transmit_duration)
-                # do classification
-                # with torch.no_grad():
-                #     images = torch.unsqueeze(images, 0)
-                #     output = net(images.to(device, dtype=torch.float))
-                #     print(output.data)
-            angle_former = angle
-            object_former = new_object
-            for i in range(1, angle_add):
-                sonar_img[:, (angle + i) % 400] = data
-            angle = angle + angle_add
+                    data[:round(number_sample/distance)] = 0
+
+                len_sample = distance / number_sample
+                data_filter = smooth(data, len_sample, 0)
+                local_var = smooth(abs(data - data_filter), len_sample, 1)
+                peaks, dict = detect(data_filter, len_sample, local_var)
+                new_object, overlap = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
+                sonar_img[:, angle] = data
+                rmax = 0
+                angle_add = fast_scan
+                for o in object_former:
+                    if o[1] not in overlap:
+                        if filter(object_former[o], threshold):
+                            if object_former[o][4] > rmax:
+                                rmax = object_former[o][4]
+                                r = object_former[o]
+                    else:
+                        angle_add = slow_scan
+                if rmax!=0:
+                    print(r)
+                    images = sonar_img[:, r[1]: r[2] + 1, np.newaxis]
+                    images = rescan(r, distance, number_sample, num_rescan, images)
+                    info = str(r[1]) + '-' + str(r[2]) + '-' + str(int(r[3]/len_sample)) + '-' + str(int(r[4]/len_sample)) + '_'
+                    local_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+                    np.save("mode_2/" + info + local_time + '.npy', images)
+                    # images = test_transform(resize(images, (51, 11, 3)))
+                    # return to former setting
+                    sample_period = calsampleperiod(distance, number_sample)
+                    sample_period = round(sample_period)
+                    transmit_duration = adjustTransmitDuration(distance, sample_period)
+                    p.set_sample_period(sample_period)
+                    p.set_number_of_samples(number_sample)
+                    p.set_transmit_duration(transmit_duration)
+                    # do classification
+                    # with torch.no_grad():
+                    #     images = torch.unsqueeze(images, 0)
+                    #     output = net(images.to(device, dtype=torch.float))
+                    #     print(output.data)
+                angle_former = angle
+                object_former = new_object
+                for i in range(1, angle_add):
+                    sonar_img[:, (angle + i) % 400] = data
+                angle = angle + angle_add
     else:
         t_start = time.time()
         for x in range(0, 10, 1):

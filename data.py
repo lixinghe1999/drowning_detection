@@ -6,9 +6,8 @@ from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 import os
 import glob
-from imageread import sonar2pool
+
 import shutil
-from sonar_display import show_sonar
 min_human=0.4
 max_human=1.5
 def smooth(data, len_sample, k):
@@ -24,7 +23,6 @@ def detect(data, len_sample, threshold):
     if (np.sum((dict['right_ips'] - dict['left_ips']) > max_peak)!=0):
         print(dict['right_ips'] - dict['left_ips'])
     return peaks, dict
-
 def compensate(data):
     # compensate the further and closer response
     if len(np.shape(data))==2:
@@ -88,7 +86,6 @@ def update_record(peaks_record, object_record, dict, angle, a, len_sample):
                                                  object_record[angle, j][3] * size_angle / (size_angle + abs(angle-a))
                     object_record[angle, j][4] = len_sample*peaks_record[angle][1][j]  * abs(angle - a) / (size_angle + abs(angle - a)) + \
                                                  object_record[angle, j][4] * size_angle / (size_angle + abs(angle - a))
-
                     new_object[angle, j] = object_record[angle, j]
                 object_record.pop((a,k))
         elif len(peaks_record[a]) == 0 and len(peaks_record[angle]) != 0:
@@ -113,13 +110,84 @@ def compare(g, results, threshold):
             if filter(result, threshold):
                 c[i] = abs((g[0] - (result[4] + result[3])/2))/20 + abs((g[1] - (result[2] + result[1])/2))/100
         return min(c), results[keys[np.argmin(c)]]
+def detect_object_lines(lines, limit, threshold):
+    a = {}
+    scan_range = 20
+    angle_former = 0
+    object_former = {}
+    object_record = {}
+    peaks_record = [[[], []]] * 400
+    for i in range(len(lines)):
+        angle, data = readline(lines[i])
+        if len(data) == 0:
+            continue
+        len_sample = scan_range / len(data)
+        data_filter = smooth(data, len_sample, 0)
+        local_var = smooth(abs(data - data_filter), len_sample, 1)
+        peaks, dict = detect(data_filter, len_sample, local_var)
+        new_object, overlap, object_record = update_record(peaks_record, object_record, dict, angle, angle_former,len_sample)
+        rmax = 0
+        for o in object_former:
+            if o[1] not in overlap:
+                if filter(object_former[o], threshold):
+                    if object_former[o][4] > rmax:
+                        rmax = object_former[o][4]
+                        r = object_former[o]
+        if rmax != 0:
+            if r[4] < limit:
+                a[angle] = r
+        object_former = new_object
+        angle_former = angle
+    return a
+def detect_object_mat(mat, threshold):
+    file_object = []
+    object_info = {}
+    num_sample = 500
+    scan_range = 20
+    angle_former = 399
+    object_former = {}
+    object_record = {}
+    peaks_record = [[[], []]] * 400
+    for angle in range(mat.shape[1]):
+        data = mat[:, angle]
+        len_sample = scan_range / num_sample
+        data_filter = smooth(data, len_sample, 0)
+        local_var = smooth(abs(data - data_filter), len_sample, 1)
+        peaks, dict = detect(data_filter, len_sample, local_var)
+        new_object, overlap, object_record = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
+        rmax = 0
+        for o in object_former:
+            if o[1] not in overlap:
+                if filter(object_former[o], threshold):
+                    if object_former[o][4] > rmax:
+                        rmax = object_former[o][4]
+                        r = object_former[o]
+        if rmax != 0:
+            file_object.append(file)
+            object_info[file] = r
+        object_former = new_object
+        angle_former = angle
+    return file_object, object_info
+def time2label(t, Action, Submerge):
+    for i in range(len(Submerge)):
+        if t < Submerge[i][1]:
+            break
+    d = i % 2
+    for s in Submerge:
+        if t >= s[0] and t <= s[1]:
+            return 2, d
+    for a in Action:
+        if t >= a[0] and t <= a[1]:
+            return 1, d
+    return 0, d
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='analyse experiment data')
-    parser.add_argument('--exp', action="store", required=False, type=int, default=4, help="We have collected multiple dataset")
+    parser.add_argument('--exp', action="store", required=False, type=int, default=6, help="We have collected multiple dataset")
     args = parser.parse_args()
     p_threshold = 0.1
-    threshold = [30, 100, 1.5, 100]
+    threshold = [30, 150, 2, 100]
     if args.exp == 1:
         # for the first experiment
         ref_20 = "first_dataset/20_big/20m_ref.txt"
@@ -277,7 +345,7 @@ if __name__ == '__main__':
                         if c <= p_threshold:
                             correct = correct + 1
                             crop_image = sonar_img[int(r[3]/len_sample):int(r[4]/len_sample)+1,r[1]-first_angle:r[2]-first_angle+1]
-                            np.save('second_dataset/' + 'images/'  + d + '-' + str(o) + '.npy', crop_image)
+                            np.save('2/' + 'images/'  + d + '-' + str(o) + '.npy', crop_image)
                             o = o + 1
                     # for o in object_record:
                     #     temp_object = {}
@@ -364,7 +432,7 @@ if __name__ == '__main__':
                             #print(r)
                             correct = correct + 1
                             crop_image = sonar_img[int(r[3] / len_sample):int(r[4] / len_sample) + 1, r[1] - first_angle:r[2] - first_angle + 1]
-                            np.save('third_dataset/' + sonar + 'images/' + d + '-' + str(n) + '.npy', crop_image)
+                            np.save('3/' + sonar + 'images/' + d + '-' + str(n) + '.npy', crop_image)
                             n = n + 1
                     # for o in object_record:
                     #     temp_object = {}
@@ -448,56 +516,91 @@ if __name__ == '__main__':
                     else:
                         continue
     elif args.exp == 5:
-        n = 0
-        a = 0
         num_sample = 500
         scan_range = 20
         sonar_image_refs = {}
         for sonar in ["sonar_1/", "sonar_2/"]:
+            shutil.rmtree('5/' + sonar + 'images/')
+            os.mkdir('5/' + sonar + 'images/')
             directories = ["Normal", 'Action', 'Submerge', 'Full']
-            # ground_truths = {"sonar_1/": {"Normal": [(6, 167), (3.5, 154)], 'Action': [(6, 164), (3.8, 155)],'Submerge': [(6, 165), (4, 158)], },
-            #                  "sonar_2/": {"Normal": [(3.8, 232), (5.2, 262)], 'Action': [(3, 230), (5, 260)],'Submerge': [(3, 230), (5, 260)], }}
             for d in directories:
                 path = '5/' + sonar + d
                 files = os.listdir(path)
-                correct = 0
+                object_info = {}
                 for file in files:
-                    print(sonar, d, file)
                     if file.split('.')[-1] == 'txt':
                         f = open(path + '/' + file, 'r')
                         lines = f.readlines()
-                        sonar_img = np.zeros((num_sample, 400))
-                        angle_former = 0
-                        object_former = {}
-                        object_record = {}
-                        peaks_record = [[[], []]] * 400
-                        for i in range(len(lines)):
-                            angle, data = readline(lines[i])
-                            if len(data) == 0:
-                                continue
-                            #data = abs(data - sonar_image_ref[:, angle])
-                            len_sample = scan_range / len(data)
-                            data_filter = smooth(data, len_sample, 0)
-                            local_var = smooth(abs(data - data_filter), len_sample, 1)
-                            peaks, dict = detect(data_filter, len_sample, local_var)
-                            new_object, overlap = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
-                            sonar_img[:, angle] = data
-                            rmax = 0
-                            for o in object_former:
-                                if o[1] not in overlap:
-                                    if filter(object_former[o], threshold):
-                                        if object_former[o][4] > rmax:
-                                            rmax = object_former[o][4]
-                                            r = object_former[o]
-                            if rmax != 0:
-                                print(r)
-                            object_former = new_object
-                            angle_former = angle
                         f.close()
-                    else:
-                        #image = np.load(path + '/' + file)
-                        #print(image.shape)
-                        pass
+                        obj = detect_object_lines(lines, 10, threshold)
+                        if obj != {}:
+                            object_info[file] = obj
+                        else:
+                            pass
+                keys = list(object_info.keys())
+                for i, o in enumerate(keys):
+                    m = 0
+                    n = 100
+                    o1 = o.split('.')[0]
+                    o2 = keys[min(i+1, len(keys)-1)].split('.')[0]
+                    for angle in object_info[o]:
+                        degree = object_info[o][angle][2] - object_info[o][angle][1]
+                        if degree > m:
+                            m = degree
+                            r = object_info[o][angle]
+                            deg = int((r[4] - r[3]) * 25)
+                    for file in files:
+                        if file.split('.')[-1] == 'npy' and file.split('.')[0] >= o1 and file.split('.')[0] < o2 :
+                            image = np.load(path + '/' + file)
+                            err = abs(degree-image.shape[1])
+                            if err < n and image.shape[1]>3:
+                                a = file
+                                n = err
+                    if n != 100 and m != 0:
+                        if d == 'Full':
+                            if a.split('.')[0] >= '2021-5-21-12-12-26-43' and a.split('.')[0] <= '2021-5-21-12-12-27-30':
+                                cls = 'Action'
+                            elif a.split('.')[0] >= '2021-5-21-12-12-27-30':
+                                cls = 'Submerge'
+                            else:
+                                cls = 'Normal'
+                        else:
+                            cls = d
+                        image = np.load(path + '/' + a)
+                        print(sonar, cls, o, a)
+                        print(image[:deg, :, :].shape)
+                        np.save('5/' + sonar + 'images/'+ cls + '_' + str((r[2]+r[1])/2) + '-' + str((r[4]+r[3])/2) + '_' + a.split('.')[0] + '.npy', image[:deg, :, :])
+    elif args.exp == 6:
+        # use timestamp to classify
+        num_sample = 500
+        scan_range = 20
+        sonar_image_refs = {}
+        i = 0
+        # the timestamp of Action and Submerge
+        Action = [['09-59-10', '10-01-03'], ['10-14-44', '10-16-03'], ['10-33-34', '10-34-35'], ['10-44-53', '10-46-46'], ['11-03-19', '11-04-47'], ['11-10-24', '11-12-39']]
+        Submerge = [['10-04-16', '10-07-03'], ['10-17-40', '10-20-18'], ['10-38-40','10-40-08'], ['10-52-20', '10-53-07'], ['11-06-31', '11-07-59'], ['11-14-12', '11-18-13']]
+        for sonar in ["sonar_1/", "sonar_2/"]:
+            shutil.rmtree('6/' + sonar + 'images/')
+            os.mkdir('6/' + sonar +  'images/')
+            path = '6/' + sonar + 'mode_2'
+            files = os.listdir(path)
+            for file in files:
+                a, b = file.split('.')
+                if b == 'npy':
+                    r, t = a.split('_')
+                    r = r.split('-')
+                    degree_span = int(r[1]) - int(r[0])
+                    distance_span = int(r[3]) - int(r[2])
+                    label, d = time2label(t[-8:], Action, Submerge)
+                    if degree_span > 4 and int(r[3]) < 250:
+                        if (d == 1 and int(r[2]) > 150) or (d == 0 and int(r[3]) < 150):
+                            crop_image = np.load(path + '/' + file)[int(r[2]):int(r[3]), :, :]
+                            np.save('6/' + sonar + 'images/' + str(label) + '_' + a + '.npy', crop_image)
+                            plt.scatter(degree_span, int(r[3]))
+                            i = i + 1
+        plt.show()
+        print(i)
+
     else:# all random data
         n, m1, m2, w = 0, 0, 0, 0
         color = ['b', 'g']
@@ -507,7 +610,7 @@ if __name__ == '__main__':
         sonars = ["sonar_1/", "sonar_2/"]
         for i in range(2):
             sonar = sonars[i]
-            reference = "third_dataset/" + sonar + "reference.txt"
+            reference = "3/" + sonar + "reference.txt"
             f = open(reference, "r")
             lines = f.readlines()
             for line in lines:
@@ -519,15 +622,15 @@ if __name__ == '__main__':
         ground_truths = {"sonar_1/": {'swim': [(0, 0), (0, 0)], 'walk': [(0, 0), (0, 0)]},
                          "sonar_2/": {'swim': [(0, 0), (0, 0)], 'walk': [(0, 0), (0, 0)]}}
         for d in directories:
-            files1 = os.listdir('third_dataset/sonar_1/' + d)
-            files2 = os.listdir('third_dataset/sonar_2/' + d)
+            files1 = os.listdir('3/sonar_1/' + d)
+            files2 = os.listdir('3/sonar_2/' + d)
             xy_former = []
             while len(files1) > 0 and len(files2) > 0:
                 if files1[0] < files2[0]:
-                    file = 'third_dataset/sonar_1/' + d + '/' + files1.pop(0)
+                    file = '3/sonar_1/' + d + '/' + files1.pop(0)
                     s = 0
                 else:
-                    file = 'third_dataset/sonar_2/' + d + '/' +files2.pop(0)
+                    file = '3/sonar_2/' + d + '/' +files2.pop(0)
                     s = 1
                 f = open(file, 'r')
                 lines = f.readlines()
@@ -556,12 +659,12 @@ if __name__ == '__main__':
                     for o in object_former:
                         if o[1] not in overlap:
                             if filter(object_record[o], threshold):
+                                m1_add = 1
                                 if object_record[o][4] > rmax:
                                     rmax = object_record[o][4]
                                     r = object_record[o]
-                                    xy = sonar2pool(s, (r[1] + r[2]) / 2, (r[3] + r[4]) / 2)
-                                    #plt.scatter(r[2] - r[1] + 1, r[5])
-                                m1_add = 1
+                                    # xy = sonar2pool(s, (r[1] + r[2]) / 2, (r[3] + r[4]) / 2)
+                                    # plt.scatter(r[2] - r[1] + 1, r[5])
                         else:
                             m2_add = 1
                     m1 = m1 + m1_add
@@ -577,7 +680,8 @@ if __name__ == '__main__':
 
                 w = w + len(lines)
                 f.close()
-        print(2, m1/w*100*1-2, m2/w*100/11, (w-m1-m2)/w*100/33)
+        # object done, object ing, nothing
+        print(m1/w, m2/w, (w-m1-m2)/w)
         plt.show()
 
 

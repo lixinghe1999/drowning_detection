@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import time
 import matplotlib.pyplot as plt
 from sonar_display import show_sonar
-import torch
 
 ## use this script to annotate human location from raw image
 def readline(line):

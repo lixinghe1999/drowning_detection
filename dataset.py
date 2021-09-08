@@ -1,11 +1,12 @@
 from torchvision import transforms
-import  torch
+import torch
 from torch.utils.data import Dataset
 import numpy as np
 import os
 from skimage.transform import resize
 import matplotlib.pyplot as plt
 import random
+import shutil
 
 class SonarDataset(Dataset):
     def __init__(self, filename, repeat=1, transform=None, inferwname=False):
@@ -64,7 +65,7 @@ if __name__ == '__main__':
 
     if args.mode == 0:
         #directories = ['2/images/', '3/sonar_1/images/', '3/sonar_2/images/']
-        directories = ['6/sonar_2/images/', '6/sonar_2/images/']
+        directories = ['6/sonar_1/images/', '6/sonar_2/images/']
         Max_shape = (0, 0)
         for d in directories:
             files = os.listdir(d)
@@ -77,7 +78,7 @@ if __name__ == '__main__':
         plt.show()
     elif args.mode == 1:
         directories = ['2/images/', '3/sonar_1/images/', '3/sonar_2/images/']
-        Max_shape = (45, 15)
+        Max_shape = (38, 14)
         time_dimension = 3
         count = 0
         labels = []
@@ -119,13 +120,15 @@ if __name__ == '__main__':
         print(means, stdevs)
     else:
         count = 0
-        Max_shape = (36, 18)
+        Max_shape = (36, 24)
         time_dimension = 3
         labels = []
         images = np.zeros([Max_shape[0], Max_shape[1], time_dimension, 1])
-        directories = ['6/sonar_2/images/', '6/sonar_2/images/']
-        save_path = 'demo_data/'
-        for d in directories:
+        for s in ['sonar_1/', 'sonar_2/']:
+            shutil.rmtree('6/' + s + 'demo_data/')
+            os.mkdir('6/' + s + 'demo_data/')
+            d = '6/' + s + 'images/'
+            save_path = '6/' + s + 'demo_data/'
             files = os.listdir(d)
             for file in files:
                 image = np.load(d + file)

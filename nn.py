@@ -18,12 +18,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
     k = 10
     kfold = KFold(n_splits=k, shuffle=True)
-    EPOCH = 40
+    EPOCH = 100
     LR = 0.01
     device = (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
 
     Norm = transforms.Normalize((54.07982728807336, 54.04604570125005, 54.0323485177939),(15.67936276916642, 15.689930178851682, 15.699009525641682))
-    demo_Norm = transforms.Normalize((49.22577382110795, 48.2819096680317, 47.88494520357551), (22.19726084193609, 21.80360678792307, 21.91796432693386))
+    demo_Norm = transforms.Normalize((47.76188580038861, 47.03154234737973, 46.73351142119235), (23.2561984533074, 22.776042059810912, 22.849482616025732))
 
     transform = transforms.Compose([transforms.ToTensor(), demo_Norm])
     train_transform = transform
@@ -31,12 +31,11 @@ if __name__ == '__main__':
     test_transform = transform
 
     dataset = SonarDataset(filename='demo.txt', transform=train_transform)
-
     if args.mode == 0:
         results = {}
         for fold, (train_ids, test_ids) in enumerate(kfold.split(dataset)):
-            net = LeNet((36, 18), 3).to(device)
-
+            net = LeNet((36, 24), 3).to(device)
+            #net = LeNet((38, 14), 2).to(device)
             train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
             test_subsampler = torch.utils.data.SubsetRandomSampler(test_ids)
             trainloader = torch.utils.data.DataLoader(dataset, batch_size=32, sampler=train_subsampler)
@@ -82,4 +81,3 @@ if __name__ == '__main__':
             print(f'Fold {key}: {value} %')
             sum += value
         print(f'Average: {sum / len(results.items())} %')
-        #torch.save(net.state_dict(), "checkpoint/" + str(acc)[:5] + '.pkl')

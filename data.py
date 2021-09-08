@@ -20,8 +20,6 @@ def detect(data, len_sample, threshold):
     max_peak = round(max_human / len_sample)
     min_peak = round(min_human / len_sample)
     peaks, dict = find_peaks(data,distance = min_peak, width = [min_peak,max_peak],prominence = 3 *threshold)
-    if (np.sum((dict['right_ips'] - dict['left_ips']) > max_peak)!=0):
-        print(dict['right_ips'] - dict['left_ips'])
     return peaks, dict
 def compensate(data):
     # compensate the further and closer response
@@ -187,7 +185,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp', action="store", required=False, type=int, default=6, help="We have collected multiple dataset")
     args = parser.parse_args()
     p_threshold = 0.1
-    threshold = [30, 150, 2, 100]
+    threshold = [30, 150, 3, 100]
     if args.exp == 1:
         # for the first experiment
         ref_20 = "first_dataset/20_big/20m_ref.txt"
@@ -288,7 +286,7 @@ if __name__ == '__main__':
         f.close()
         color = {'5/':'b', '10/': 'r', '15/':'y'}
         o = 0
-        for dis in ['5/', '10/', '15/']:
+        for dis in ['15/']:
             if dis == '5/':
                 if detection:
                     directories = ['static1', 'static3', 'Noaction1A', 'Noaction2A', 'Noaction2B','action1A', 'action1B', 'action2A']
@@ -303,7 +301,7 @@ if __name__ == '__main__':
                     directories = ['Noaction1B', 'Noaction2A', 'Noaction2B', 'action1A', 'action1B', 'action2A', 'action2B']
                 ground_truths = {'static1': [(10, 178), (10, 196)], 'static3': [(9.5, 175), (9.3, 195)],'Noaction1B': [(8.5, 200)], 'Noaction2A': [(7.5, 175)],
                                  'Noaction2B': [(8, 196)], 'action1A':[(7.8, 175)], 'action1B': [(7.8, 192)], 'action2A': [(7, 170)], 'action2B':[(7.2, 190)]}
-            elif dis == '15/':
+            else:
                 if detection:
                     directories = ['static1', 'static3', 'Noaction1A', 'action1A', 'action2A']
                 else:
@@ -341,24 +339,17 @@ if __name__ == '__main__':
                             last_angle = angle
                     f.close()
                     for g in ground_truth:
-                        c, r= compare(g, object_record,  threshold)
+                        c, r = compare(g, object_record,  threshold)
                         if c <= p_threshold:
                             correct = correct + 1
                             crop_image = sonar_img[int(r[3]/len_sample):int(r[4]/len_sample)+1,r[1]-first_angle:r[2]-first_angle+1]
-                            np.save('2/' + 'images/'  + d + '-' + str(o) + '.npy', crop_image)
+                            np.save('2/' + 'images/' + d + '-' + str(o) + '.npy', crop_image)
                             o = o + 1
-                    # for o in object_record:
-                    #     temp_object = {}
-                    #     r = object_record[o]
-                    #     temp_object[o] = r
-                    #     for g in ground_truth:
-                    #         c, _ = compare(g, temp_object, 0.4)
-                    #         if c <= c_threshold:
-                    #             plt.scatter(r[0], r[5], c=color[dis], marker='x', s = 10)
-                    #             break
-                    #         else:
-                    #             plt.scatter(r[0], r[5], c = color[dis], marker='o', s = 10)
-                    #             break
+                            #plt.scatter(r[2]-r[1], (r[4]-r[3]), c = 'blue')
+                            plt.scatter(r[0], r[5], c='blue')
+                        else:
+                            #plt.scatter(r[2]-r[1], (r[4]-r[3]), c = 'green')
+                            plt.scatter(r[0], r[5], c='green')
                     # plt.imshow(sonar_img, cmap='gray',aspect=len(lines)/num_sample)
                     # plt.yticks([0,49,99,149,199,249,299,349,399,449,499],[0,2,4,6,8,10,12,14,16,18,20])
                     # plt.xticks(np.arange(len(lines))[::int(len(lines)/4)], np.arange(first_angle, last_angle+1)[::int(len(lines)/4)])
@@ -478,7 +469,7 @@ if __name__ == '__main__':
                 files = os.listdir(path)
                 correct = 0
                 for file in files:
-                    if file.split('.')[0]>'2021-5-13-11-25-22':
+                    if file.split('.')[0] > '2021-5-13-11-25-22':
                         sonar_image_ref = sonar_image_refs['reference2']
                     else:
                         sonar_image_ref = sonar_image_refs['reference1']
@@ -580,8 +571,9 @@ if __name__ == '__main__':
         Action = [['09-59-10', '10-01-03'], ['10-14-44', '10-16-03'], ['10-33-34', '10-34-35'], ['10-44-53', '10-46-46'], ['11-03-19', '11-04-47'], ['11-10-24', '11-12-39']]
         Submerge = [['10-04-16', '10-07-03'], ['10-17-40', '10-20-18'], ['10-38-40','10-40-08'], ['10-52-20', '10-53-07'], ['11-06-31', '11-07-59'], ['11-14-12', '11-18-13']]
         for sonar in ["sonar_1/", "sonar_2/"]:
+            f = open('6/' + sonar + 'update_schedule.txt', 'w')
             shutil.rmtree('6/' + sonar + 'images/')
-            os.mkdir('6/' + sonar +  'images/')
+            os.mkdir('6/' + sonar + 'images/')
             path = '6/' + sonar + 'mode_2'
             files = os.listdir(path)
             for file in files:
@@ -598,41 +590,35 @@ if __name__ == '__main__':
                             np.save('6/' + sonar + 'images/' + str(label) + '_' + a + '.npy', crop_image)
                             plt.scatter(degree_span, int(r[3]))
                             i = i + 1
+                else:
+                    f.write(a + "\n")
+            f.close()
         plt.show()
         print(i)
 
     else:# all random data
         n, m1, m2, w = 0, 0, 0, 0
-        color = ['b', 'g']
         num_sample = 500
         scan_range = 20
-        sonar_image_ref = {0: np.zeros((num_sample, 400)), 1: np.zeros((num_sample, 400))}
-        sonars = ["sonar_1/", "sonar_2/"]
-        for i in range(2):
-            sonar = sonars[i]
-            reference = "3/" + sonar + "reference.txt"
+        sonar_image_ref = {}
+        directories = ["3/sonar_1/swim", "3/sonar_1/walk", "3/sonar_2/swim", "3/sonar_2/walk", "4/sonar_1/Random", "4/sonar_2/Random"]
+        for ref in ["3/sonar_1", "3/sonar_2", "4/sonar_1", "4/sonar_2"]:
+            sonar_image_ref[ref] = np.zeros((num_sample, 400))
+            reference = ref + "/reference.txt"
             f = open(reference, "r")
             lines = f.readlines()
             for line in lines:
                 angle, data = readline(line)
                 if len(data) == num_sample:
-                    sonar_image_ref[i][:, angle] = data
+                    sonar_image_ref[ref][:, angle] = data
             f.close()
-        directories = ['swim', 'walk']
-        ground_truths = {"sonar_1/": {'swim': [(0, 0), (0, 0)], 'walk': [(0, 0), (0, 0)]},
-                         "sonar_2/": {'swim': [(0, 0), (0, 0)], 'walk': [(0, 0), (0, 0)]}}
         for d in directories:
-            files1 = os.listdir('3/sonar_1/' + d)
-            files2 = os.listdir('3/sonar_2/' + d)
-            xy_former = []
-            while len(files1) > 0 and len(files2) > 0:
-                if files1[0] < files2[0]:
-                    file = '3/sonar_1/' + d + '/' + files1.pop(0)
-                    s = 0
-                else:
-                    file = '3/sonar_2/' + d + '/' +files2.pop(0)
-                    s = 1
-                f = open(file, 'r')
+            s = os.path.dirname(d)
+            files = os.listdir(d)
+            for file in files:
+                if file.split('.')[-1] == 'npy':
+                    continue
+                f = open(d + '/' + file, 'r')
                 lines = f.readlines()
                 sonar_img = np.zeros((num_sample, 400))
                 angle_former = 0
@@ -658,26 +644,20 @@ if __name__ == '__main__':
                     m2_add = 0
                     for o in object_former:
                         if o[1] not in overlap:
-                            if filter(object_record[o], threshold):
+                            if filter(object_record[o], threshold) and (object_record[o][2]-object_record[o][1])>3:
                                 m1_add = 1
                                 if object_record[o][4] > rmax:
                                     rmax = object_record[o][4]
                                     r = object_record[o]
-                                    # xy = sonar2pool(s, (r[1] + r[2]) / 2, (r[3] + r[4]) / 2)
-                                    # plt.scatter(r[2] - r[1] + 1, r[5])
+
                         else:
                             m2_add = 1
+                    if rmax != 0:
+                        plt.scatter(r[2] - r[1], r[4] - r[3])
                     m1 = m1 + m1_add
                     m2 = m2 + m2_add
                     object_former = new_object
                     angle_former = angle
-                    # print(r)
-                    # plt.imshow(sonar_img[:, r[1]: r[2] + 1], cmap='gray', aspect=(r[2]-r[1]+1) / num_sample)
-                    # plt.yticks([0, 49, 99, 149, 199, 249, 299, 349, 399, 449, 499],
-                    #            [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
-                    # plt.xticks(range(0, r[2]-r[1]+1),range(r[1], r[2] + 1))
-                    # plt.show()
-
                 w = w + len(lines)
                 f.close()
         # object done, object ing, nothing

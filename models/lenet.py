@@ -12,8 +12,8 @@ class LeNet(nn.Module):
             num_fc2 = int((num_fc2 - kernel[1] + 1) / 2)
         self.conv1 = nn.Conv2d(3, 8, kernel)
         self.conv2 = nn.Conv2d(8, 16, kernel)
-        self.fc1   = nn.Linear(16 * num_fc1* num_fc2, 120)
-        self.fc2   = nn.Linear(120, 20)
+        self.fc1   = nn.Linear(16 * num_fc1 * num_fc2, 100)
+        self.fc2   = nn.Linear(100, 20)
         self.fc3   = nn.Linear(20, fc)
 
     def forward(self, x):

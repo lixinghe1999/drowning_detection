@@ -1,56 +1,49 @@
-import time
-from data import *
-number_sample = 500
-start_angle = 0
-stop_angle = 399
-distance = 20
-fast_scan = 3
-slow_scan = 1
-threshold = [0, 100, 1.5, 100]
-angle = start_angle
-angle_former = (start_angle-1)%400
-object_former = []
-object_record = {}
-peaks_record = [[[], []]] * 400
-sonar_img = np.zeros((number_sample, 400))
-local_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-fileObject = open("mode_2/" + local_time + '.txt', 'w')
-while(1):
-    if (angle > stop_angle):
-        fileObject.close()
-        angle = angle - stop_angle - 1 + start_angle
-        object_record = {}
-        peaks_record = [[]] * 400
-        local_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-        fileObject = open("mode_2/" + local_time + '.txt', 'w')
-    data = np.random.random((500))
-    # record data
-    fileObject.write(str(angle) + " ")
-    for j in range(len(data)):
-        fileObject.write(str(data[j]) + " ")
-    fileObject.write("\n")
-    data[:round(number_sample/distance)] = 0
+import numpy as np
+from shapely.geometry import Polygon
+import matplotlib.pyplot as plt
+span = 40 / 180 * np.pi
+distance = 10
+def intersection(points1, points2):
+    poly1 = Polygon(points1.reshape(3, 2)).convex_hull
+    poly2 = Polygon(points2.reshape(3, 2)).convex_hull
+    if not poly1.intersects(poly2):
+        inter_area = 0
+    else:
+        inter_area = poly1.intersection(poly2).area
+    return inter_area
+def direction2loc(d):
+    d_new = d - span/2
+    x1, y1 = distance * np.array([np.cos(d_new), np.sin(d_new)])
+    d_new = d + span / 2
+    x2, y2 = distance * np.array([np.cos(d_new), np.sin(d_new)])
+    return [x1, y1, x2, y2]
 
-    len_sample = distance / number_sample
-    data_filter = smooth(data, len_sample, 0)
-    local_var = smooth(abs(data - data_filter), len_sample, 1)
-    peaks, dict = detect(data_filter, len_sample, local_var)
-    new_object, overlap = update_record(peaks_record, object_record, dict, angle, angle_former, len_sample)
-    sonar_img[:, angle] = data
-    rmax = 0
-    angle_add = fast_scan
-    for o in object_former:
-        if o[1] not in overlap:
-            if filter(object_former[o], threshold):
-                if object_former[o][4] > rmax:
-                    rmax = object_former[o][4]
-                    r = object_former[o]
-        else:
-            angle_add = slow_scan
-    if rmax != 0:
-        print(r)
-    angle_former = angle
-    object_former = new_object
-    for i in range(1, angle_add):
-        sonar_img[:, (angle + i) % 400] = data
-    angle = angle + angle_add
+def cal_overlap(X, D):
+    num_sensor = len(D)
+    points = np.zeros((6, num_sensor))
+    for i in range(num_sensor):
+        line_2 = direction2loc(D[i])
+        points[:2, i] = X[i]
+        points[2:4, i] = X[i] + line_2[:2]
+        points[4:, i] = X[i] + line_2[2:]
+    overlap = np.zeros((num_sensor, num_sensor))
+    for m in range(num_sensor):
+        for n in range(num_sensor):
+            overlap[m, n] = intersection(points[:, m], points[:, n])
+    return overlap
+def threeD(X, Y):
+    Z = np.zeros(np.shape(X))
+    for i in range(np.shape(X)[0]):
+        for j in range(np.shape(X)[1]):
+            Z[i, j] = cal_overlap(np.array([[0, 0], [0.1, 0]]), [X[i, j], Y[i, j]])[0, 1]
+    return Z
+D = np.linspace(0, np.pi, 50)
+# D = [np.pi/4, 3*np.pi/4]
+X, Y = np.meshgrid(D, D)
+Z = threeD(X, Y)
+ax = plt.axes(projection = '3d')
+ax.plot_surface(X, Y, Z, cmap = 'rainbow')
+plt.show()
+
+
+

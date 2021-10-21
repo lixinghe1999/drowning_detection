@@ -166,7 +166,7 @@ def detect_object_mat(mat, threshold):
         object_former = new_object
         angle_former = angle
     return file_object, object_info
-def time2label(t, Action, Submerge):
+def time2label1(t, Action, Submerge):
     for i in range(len(Submerge)):
         if t < Submerge[i][1]:
             break
@@ -178,11 +178,55 @@ def time2label(t, Action, Submerge):
         if t >= a[0] and t <= a[1]:
             return 1, d
     return 0, d
+def time2label2(d, r):
+    r_mean = (int(r[0]) + int(r[1]))/2
+    d_mean = (int(r[2]) + int(r[3]))/2
+    if d >= 0 and d <=3: # drown-swim
+        if r_mean > 210 and d_mean > 200:
+            return 1
+        else:
+            return 3
+    elif d == 4:
+        if r_mean > 200 and d_mean < 150:
+            return 1
+        else:
+            return 3
+    elif d == 5:
+        if r_mean > 200 and d_mean > 159:
+            return 1
+        else:
+            return 3
+    elif d >= 6 and d<=8: # drown-still
+        if r_mean > 210:
+            return 0
+        else:
+            return 1
+    elif d == 9: # both drown
+        return 1
+    elif d == 10: # overlap-1
+        if d_mean < 75:
+            return 0
+        else:
+            return 3
+    elif d == 11: # overlap-2
+        if d_mean < 75:
+            return 1
+        else:
+            return 0
+    elif d == 12: # overlap-3
+        if d_mean > 75:
+            return 1
+        else:
+            return 0
+    elif d == 13: # noise pattern
+        return 0
+    else: # four people
+        return 1
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='analyse experiment data')
-    parser.add_argument('--exp', action="store", required=False, type=int, default=6, help="We have collected multiple dataset")
+    parser.add_argument('--exp', action="store", required=False, type=int, default=7, help="We have collected multiple dataset")
     args = parser.parse_args()
     p_threshold = 0.1
     threshold = [30, 150, 3, 100]
@@ -583,7 +627,7 @@ if __name__ == '__main__':
                     r = r.split('-')
                     degree_span = int(r[1]) - int(r[0])
                     distance_span = int(r[3]) - int(r[2])
-                    label, d = time2label(t[-8:], Action, Submerge)
+                    label, d = time2label1(t[-8:], Action, Submerge)
                     if degree_span > 4 and int(r[3]) < 250:
                         if (d == 1 and int(r[2]) > 150) or (d == 0 and int(r[3]) < 150):
                             crop_image = np.load(path + '/' + file)[int(r[2]):int(r[3]), :, :]
@@ -593,8 +637,58 @@ if __name__ == '__main__':
                 else:
                     f.write(a + "\n")
             f.close()
-        plt.show()
         print(i)
+        plt.show()
+    elif args.exp == 7:
+        # use timestamp to classify
+        num_sample = 500
+        scan_range = 20
+        sonar_image_refs = {}
+        i = 0
+        # the timestamp of Action and Submerge = START END
+        # drown_swim, drown_still, drown_drown, overlap, noise_pattern, fourpeople
+        time_stamp = [['10-30-36', '10-30-59'], ['10-33-23', '10-34-21'], ['10-34-31', '10-35-23'], ['10-37-50', '10-39-31'], ['10-44-25', '10-46-00'], ['10-47-50', '10-49-17'],
+                      ['10-52-00', '10-52-27'], ['10-53-13', '10-55-24'], ['10-56-48', '10-59-14'],
+                      ['11-01-13', '11-03-22'],
+                      ['11-10-46', '11-11-40'], ['11-13-10', '11-14-04'], ['11-14-53', '11-16-23'],
+                      ['11-20-57', '11-23-46'],
+                      ['11-35-13', '11-36-18']]
+        f = open('7/' + 'update_schedule.txt', 'w')
+        shutil.rmtree('7/' + 'images/')
+        os.mkdir('7/' + 'images/')
+        for folder in ['mode_2/', 'overlap/', 'fourpeople/']:
+        # for folder in ['noise_pattern/']:
+            files = os.listdir('7/' + folder)
+            for file in files:
+                a, b = file.split('.')
+                if b == 'npy':
+                    r, t = a.split('_')
+                    r = r.split('-')
+                    t = t[-8:]
+                    c = None
+                    for d in range(len(time_stamp)):
+                        if t < time_stamp[d][1] and t > time_stamp[d][0]:
+                            c = d
+                    if c:
+                        label = time2label2(c, r)
+                    else:
+                        label = 0
+                    degree_span = int(r[1]) - int(r[0])
+                    distance_span = int(r[3]) - int(r[2])
+                    #if degree_span > 2 and int(r[3]) < 320 and int(r[2]) > 50:
+                    if degree_span > 3 and int(r[3]) < 300 and int(r[2]) > 50:
+                        crop_image = np.load('7/' + folder + file)[int(r[2]):int(r[3]), :, :]
+                        np.save('7/images/' + str(label) + '_' + a + '.npy', crop_image)
+                        #plt.scatter(degree_span, int(r[3]), c='blue')
+                        i = i + 1
+                    else:
+                        #plt.scatter(degree_span, int(r[3]), c='red')
+                        pass
+                else:
+                    f.write(a + "\n")
+        f.close()
+        print(i)
+        # plt.show()
 
     else:# all random data
         n, m1, m2, w = 0, 0, 0, 0

@@ -141,7 +141,7 @@ if __name__ == '__main__':
         for i in range(num_sonar):
             A[i][1:] = sonar_merge[i]
         seconds = (datetime.strptime(t, "%Y-%m-%d-%H-%M-%S") - t_start).total_seconds()
-        i = int(cap.get(5)) * seconds
+        i = round(cap.get(5)) * seconds
         now_time = datetime.strptime(t, "%Y-%m-%d-%H-%M-%S")
         cap.set(cv2.CAP_PROP_POS_FRAMES, i - 6)
         for j in range(12):
@@ -153,7 +153,7 @@ if __name__ == '__main__':
             ax2.text(1850, 800, 'sonar_2', fontsize=20)
             ret, frame = cap.read()
             if ret and j % 2 == 1:
+                ax2.set_title('RGB video\n' + t)
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                ax2.set_title('RGB video\n' + now_time.strftime("%Y-%m-%d-%H-%M-%S"))
                 ax2.imshow(frame)
                 plt.pause(0.00001)

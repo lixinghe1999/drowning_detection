@@ -51,7 +51,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Control the sonar')
-    parser.add_argument('--mode', action="store", required=False, type=int, default=0 ,help="Preprocess or real process")
+    parser.add_argument('--mode', action="store", required=False, type=int, default=3, help="Preprocess or real process")
     args = parser.parse_args()
     # label --> split --> shuffle --> calculate the mean and variance of dataset
     # mean and variance for experiment 2
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     if args.mode == 0:
         #directories = ['2/images/', '3/sonar_1/images/', '3/sonar_2/images/']
-        directories = ['6/sonar_1/images/', '6/sonar_2/images/']
+        directories = ['6/sonar_1/images/', '6/sonar_2/images/', '7/images/']
         Max_shape = (0, 0)
         for d in directories:
             files = os.listdir(d)
@@ -118,7 +118,7 @@ if __name__ == '__main__':
             means.append(np.mean(pixels))
             stdevs.append(np.std(pixels))
         print(means, stdevs)
-    else:
+    elif args.mode == 2:
         count = 0
         Max_shape = (36, 24)
         time_dimension = 3
@@ -139,6 +139,47 @@ if __name__ == '__main__':
                     labels.append([save_path + str(count) + '_' + file, file.split('_')[0]])
                     count = count + 1
         save_txt(labels, 'demo.txt')
+        print(np.shape(images))
+        means, stdevs = [], []
+        for i in range(time_dimension):
+            pixels = images[:, :, i, :].ravel()  # 拉成一行
+            means.append(np.mean(pixels))
+            stdevs.append(np.std(pixels))
+        print(means, stdevs)
+    elif args.mode == 3:
+        count = 0
+        Max_shape = (36, 24)
+        time_dimension = 3
+        labels = []
+        images = np.zeros([Max_shape[0], Max_shape[1], time_dimension, 1])
+        shutil.rmtree('7/demo_data/')
+        os.mkdir('7/demo_data/')
+        d = '7/images/'
+        save_path = '7/demo_data/'
+        files = os.listdir(d)
+        for file in files:
+            # if file.split('_')[0] == '3':
+            #     image = np.load(d + file)
+            #     for i in range(0, image.shape[2] - time_dimension + 1):
+            #         a = resize(image[:, :, i: i + time_dimension], (Max_shape[0], Max_shape[1], time_dimension))
+            #         a /= a.max()
+            #         plt.subplot(1,3, 1)
+            #         plt.imshow(a[:,:,0])
+            #         plt.subplot(1, 3, 2)
+            #         plt.imshow(a[:,:,1])
+            #         plt.subplot(1, 3, 3)
+            #         plt.imshow(a[:,:,2])
+            #         plt.show()
+            #     continue
+            # else:
+            image = np.load(d + file)
+            for i in range(0, image.shape[2] - time_dimension + 1):
+                a = resize(image[:, :, i: i + time_dimension], (Max_shape[0], Max_shape[1], time_dimension))
+                np.save(save_path + str(count) + '_' + file, a)
+                images = np.concatenate((images, a[:, :, :, np.newaxis]), axis=3)
+                labels.append([save_path + str(count) + '_' + file, file.split('_')[0]])
+                count = count + 1
+        save_txt(labels, 'demo_add.txt')
         print(np.shape(images))
         means, stdevs = [], []
         for i in range(time_dimension):

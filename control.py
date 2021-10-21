@@ -73,18 +73,18 @@ if __name__=='__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Control the sonar')
     parser.add_argument('--data', action="store", required=False, type=int, default=1, help="We use fake data or sonar data")
-    parser.add_argument('--mode', action="store", required=False, type=int, default=0, help="0-scan one sector, 1-scan one direction, 2-auto_transmit(not available now)")
+    parser.add_argument('--mode', action="store", required=False, type=int, default=2, help="0-scan one sector, 1-scan one direction, 2-auto_transmit(not available now)")
     parser.add_argument('--background', action="store", required=False, type=int, default=1,help="Use background substration or close substration")
     args = parser.parse_args()
-    threshold = [10, 150, 2, 100] #object filter
-    start_angle = 205
-    stop_angle = 235
-    scan_step = 3 #only for mode_0
+    threshold = [10, 200, 3, 100] #object filter
+    start_angle = 210
+    stop_angle = 250
+    scan_step =  3 #only for mode_0
     repeat = 50 # only for mode_1
     fast_scan = 3 # mode_2
     slow_scan = 1 # mode_2
     num_rescan = 3 # mode_2
-    reference = "mode_0/2021-07-29-09-48-59.txt"
+    reference = "mode_0/2021-09-16-10-06-11.txt"
 
     if args.data == 1:
         device='COM8'
